@@ -1,0 +1,9 @@
+# Import models with proper type annotations to avoid circular import issues
+from .user import User, UserCreate, UserLogin, UserUpdate, UserRead
+from .task import Task
+from .category import Category
+from .conversation import Conversation
+from .message import Message
+from .recurring_task import RecurringTask
+
+__all__ = ["User", "UserCreate", "UserLogin", "UserUpdate", "UserRead", "Task", "Category", "Conversation", "Message", "RecurringTask"]

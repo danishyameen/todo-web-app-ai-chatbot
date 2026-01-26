@@ -1,3 +1,3 @@
-from . import auth, tasks, categories
+from . import auth, tasks, categories, chat
 
-__all__ = ["auth", "tasks", "categories"]
+__all__ = ["auth", "tasks", "categories", "chat"]

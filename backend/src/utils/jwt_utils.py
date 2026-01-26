@@ -9,7 +9,8 @@ from ..config.settings import settings
 from ..models.user import User
 
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Using argon2 as primary scheme for better compatibility, with fallback to bcrypt
+pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -19,7 +20,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def hash_password(password: str) -> str:
     """Hash a plain password."""
-    return pwd_context.hash(password)
+    # Truncate password to 72 bytes to comply with bcrypt limitations
+    truncated_password = password[:72] if len(password.encode('utf-8')) > 72 else password
+    return pwd_context.hash(truncated_password)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:

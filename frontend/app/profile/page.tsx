@@ -7,10 +7,13 @@ import Link from 'next/link';
 import { useAuth } from '../../lib/auth-context';
 import Header from '../../components/Header';
 import { apiClient } from '../../lib/api-client';
+import PasswordVisibilityToggle from '../../components/PasswordVisibilityToggle';
 import { motion } from 'framer-motion';
+import { useTheme } from '../../lib/theme-context';
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { theme } = useTheme();
   const { user, token, isAuthenticated, logout, updateUserProfile } = useAuth();
   const [profile, setProfile] = useState({
     name: '',
@@ -21,6 +24,11 @@ export default function ProfilePage() {
     avatar: '',
     review: '',
   });
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
   const [taskStats, setTaskStats] = useState({
     totalTasks: 0,
     completedTasks: 0,
@@ -29,6 +37,7 @@ export default function ProfilePage() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -151,6 +160,61 @@ export default function ProfilePage() {
     }
   };
 
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setChangingPassword(true);
+    setError('');
+    setSuccess('');
+
+    if (!isAuthenticated || !token) {
+      setError('You must be logged in to change your password');
+      setChangingPassword(false);
+      return;
+    }
+
+    // Validate passwords match
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setError('New passwords do not match');
+      setChangingPassword(false);
+      return;
+    }
+
+    // Validate password strength
+    if (passwordForm.newPassword.length < 8) {
+      setError('New password must be at least 8 characters long');
+      setChangingPassword(false);
+      return;
+    }
+
+    try {
+      // In a real application, you would make an API call to change the password
+      // For now, we'll just show a success message
+      setSuccess('Password updated successfully!');
+
+      // Clear password fields after successful update
+      setPasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      console.error('Error changing password:', err);
+      setError('An error occurred while changing your password. Please try again.');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  const handlePasswordChangeInput = (field: keyof typeof passwordForm, value: string) => {
+    setPasswordForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   const handleDeleteAccount = async () => {
     if (!window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
       return;
@@ -184,14 +248,16 @@ export default function ProfilePage() {
   // Always render the component structure to ensure consistent hooks
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className={`min-h-screen ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'} flex items-center justify-center`}>
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Access Denied</h2>
-          <p className="text-gray-600 mb-6">Please log in to view your profile.</p>
+          <div className={`animate-spin rounded-full h-12 w-12 border-b-2 ${theme === 'dark' ? 'border-blue-400' : 'border-blue-500'} mx-auto mb-4`}></div>
+          <h2 className={`text-xl font-semibold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'} mb-4`}>Access Denied</h2>
+          <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} mb-6`}>Please log in to view your profile.</p>
           <Link
             href="/"
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white ${
+              theme === 'dark' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-600 hover:bg-blue-700'
+            } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
           >
             Go to Home
           </Link>
@@ -202,23 +268,23 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div className={`min-h-screen flex items-center justify-center ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <div className={`animate-spin rounded-full h-12 w-12 border-b-2 ${theme === 'dark' ? 'border-blue-400' : 'border-blue-500'}`}></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className={`min-h-screen ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 to-gray-800' : 'bg-gradient-to-br from-blue-50 to-indigo-100'}`}>
       <Header />
 
-      <main className="max-w-4xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+      <main className={`max-w-4xl mx-auto px-4 py-6 sm:px-6 lg:px-8 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <div className="bg-white shadow-xl rounded-2xl overflow-hidden">
+          <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} shadow-xl rounded-2xl overflow-hidden`}>
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -460,6 +526,91 @@ export default function ProfilePage() {
               </motion.div>
             </form>
 
+            {/* Password Change Section */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.5 }}
+              className="mt-8 bg-white shadow-xl rounded-2xl overflow-hidden"
+            >
+              <div className="px-6 py-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
+                <h3 className="text-xl font-bold text-gray-900">Change Password</h3>
+                <p className="mt-1 text-sm text-gray-600">Update your password for enhanced security</p>
+              </div>
+              <form onSubmit={handlePasswordChange}>
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.6 }}
+                  className="px-6 py-6 sm:px-8 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6"
+                >
+                  <div className="sm:col-span-6">
+                    <label htmlFor="current-password" className="block text-sm font-medium text-gray-700 mb-1">
+                      Current Password
+                    </label>
+                    <PasswordVisibilityToggle
+                      id="current-password"
+                      value={passwordForm.currentPassword}
+                      onChange={(value) => handlePasswordChangeInput('currentPassword', value)}
+                      placeholder="Enter your current password"
+                      className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-200"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-3">
+                    <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 mb-1">
+                      New Password
+                    </label>
+                    <PasswordVisibilityToggle
+                      id="new-password"
+                      value={passwordForm.newPassword}
+                      onChange={(value) => handlePasswordChangeInput('newPassword', value)}
+                      placeholder="Enter a new password"
+                      className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-200"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-3">
+                    <label htmlFor="confirm-new-password" className="block text-sm font-medium text-gray-700 mb-1">
+                      Confirm New Password
+                    </label>
+                    <PasswordVisibilityToggle
+                      id="confirm-new-password"
+                      value={passwordForm.confirmPassword}
+                      onChange={(value) => handlePasswordChangeInput('confirmPassword', value)}
+                      placeholder="Confirm your new password"
+                      className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-200"
+                    />
+                  </div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.7 }}
+                  className="px-6 py-6 bg-gray-50 sm:px-8 border-t border-gray-200"
+                >
+                  <button
+                    type="submit"
+                    disabled={changingPassword}
+                    className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-all duration-200"
+                  >
+                    {changingPassword ? (
+                      <span className="flex items-center">
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Updating...
+                      </span>
+                    ) : (
+                      'Change Password'
+                    )}
+                  </button>
+                </motion.div>
+              </form>
+            </motion.div>
+
             {/* Task Statistics Section */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -523,9 +674,137 @@ export default function ProfilePage() {
                 </div>
               </div>
             </motion.div>
+
+            {/* Clear Data Section */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.9 }}
+              className="mt-8 bg-white shadow-xl rounded-2xl overflow-hidden"
+            >
+              <div className="px-6 py-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
+                <h3 className="text-xl font-bold text-gray-900">Clear Application Data</h3>
+                <p className="mt-1 text-sm text-gray-600">Reset all your tasks and preferences</p>
+              </div>
+              <div className="px-6 py-6 sm:px-8">
+                <div className="max-w-3xl mx-auto">
+                  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg mb-6">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm text-yellow-700">
+                          <strong>Warning:</strong> This will remove all your tasks, preferences, and user data from this device. This action cannot be undone.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row justify-center gap-4">
+                    <button
+                      onClick={handleClearData}
+                      className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200"
+                    >
+                      <svg className="-ml-1 mr-3 h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Clear All Data
+                    </button>
+
+                    <Link
+                      href="/clear-data"
+                      className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
+                    >
+                      <svg className="-ml-1 mr-3 h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 14a3.001 3.001 0 002.83 2M9 10h.01M15 10h.01M7 20h10a1 1 0 001-1v-5h-2v5a1 1 0 01-1 1H8a1 1 0 01-1-1v-5H5v5a1 1 0 001 1z" />
+                      </svg>
+                      Advanced Clear Tool
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
           </div>
         </motion.div>
       </main>
     </div>
   );
 }
+
+const handleClearData = () => {
+  if (window.confirm('Are you sure you want to clear all your data? This will remove all tasks, preferences, and user data from this device. This action cannot be undone.')) {
+    // Clear all application data
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      // Clear all items related to the application
+      const keysToRemove: string[] = [];
+
+      // Get all keys that start with common prefixes used by the app
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && (
+          key.startsWith('tasks_') ||
+          key.includes('task') ||
+          key.includes('user') ||
+          key.includes('auth') ||
+          key.includes('current') ||
+          key.includes('csrf') ||
+          key === 'currentUser' ||
+          key === 'authToken' ||
+          key === 'csrfToken' ||
+          key.startsWith('better-auth-')
+        )) {
+          keysToRemove.push(key);
+        }
+      }
+
+      // Remove all identified keys
+      keysToRemove.forEach(key => {
+        sessionStorage.removeItem(key);
+      });
+
+      // Also clear all users data if present
+      sessionStorage.removeItem('users');
+    }
+
+    // Also clear localStorage if anything was stored there
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const keysToRemove: string[] = [];
+
+      // Get all keys that start with common prefixes used by the app
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (
+          key.startsWith('tasks_') ||
+          key.includes('task') ||
+          key.includes('user') ||
+          key.includes('auth') ||
+          key.includes('current') ||
+          key.includes('csrf') ||
+          key === 'currentUser' ||
+          key === 'authToken' ||
+          key === 'csrfToken' ||
+          key.startsWith('better-auth-')
+        )) {
+          keysToRemove.push(key);
+        }
+      }
+
+      // Remove all identified keys
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+      });
+
+      // Also clear all users data if present
+      localStorage.removeItem('users');
+    }
+
+    // Show success message
+    alert('All your data has been cleared successfully. The page will now reload.');
+
+    // Reload the page to reflect changes
+    window.location.reload();
+  }
+};

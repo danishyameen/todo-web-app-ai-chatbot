@@ -101,12 +101,18 @@ def add_monitoring_middleware(app):
 
         try:
             response = await call_next(request)
-        finally:
+        except Exception as e:
             duration = time.time() - start_time
-
-            # Log request info
-            logger.info(f"Request: {request.method} {request.url.path} "
-                       f"completed in {duration:.4f}s, status={response.status_code}")
+            # Log error with timing info
+            logger.error(f"Request: {request.method} {request.url.path} "
+                        f"failed after {duration:.4f}s with error: {str(e)}")
+            raise
+        finally:
+            if 'response' in locals():  # Only log if response was created successfully
+                duration = time.time() - start_time
+                # Log request info
+                logger.info(f"Request: {request.method} {request.url.path} "
+                           f"completed in {duration:.4f}s, status={response.status_code}")
 
         return response
 

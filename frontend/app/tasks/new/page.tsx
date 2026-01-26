@@ -7,10 +7,12 @@ import { useAuth } from '../../../lib/auth-context';
 import Header from '../../../components/Header';
 import { apiClient } from '../../../lib/api-client';
 import { motion } from 'framer-motion';
+import { useTheme } from '../../../lib/theme-context';
 
 export default function CreateTaskPage() {
   const router = useRouter();
   const { user, token, isAuthenticated } = useAuth();
+  const { theme } = useTheme();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -77,31 +79,31 @@ export default function CreateTaskPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className={`min-h-screen ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 to-gray-800' : 'bg-gradient-to-br from-blue-50 to-indigo-100'}`}>
       <Header />
 
-      <main className="max-w-3xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+      <main className={`max-w-3xl mx-auto px-4 py-6 sm:px-6 lg:px-8 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <div className="bg-white shadow-xl rounded-2xl overflow-hidden">
+          <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} shadow-xl rounded-2xl overflow-hidden`}>
             {error && (
               <motion.div
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3 }}
-                className="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg mx-4 mt-4"
+                className={`bg-red-50 border-l-4 border-red-400 p-4 rounded-lg mx-4 mt-4 ${theme === 'dark' ? 'bg-red-900/30' : 'bg-red-50'}`}
               >
                 <div className="flex">
                   <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <svg className={`h-5 w-5 ${theme === 'dark' ? 'text-red-400' : 'text-red-400'}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                     </svg>
                   </div>
                   <div className="ml-3">
-                    <p className="text-sm text-red-700">{error}</p>
+                    <p className={`text-sm ${theme === 'dark' ? 'text-red-300' : 'text-red-700'}`}>{error}</p>
                   </div>
                 </div>
               </motion.div>
@@ -112,7 +114,9 @@ export default function CreateTaskPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.1 }}
-                className="px-6 py-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100 sm:px-8"
+                className={`px-6 py-6 border-b ${
+                  theme === 'dark' ? 'border-gray-700 bg-gray-700' : 'border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100'
+                } sm:px-8`}
               >
                 <div className="flex items-center">
                   <img
@@ -125,15 +129,17 @@ export default function CreateTaskPage() {
                       const parent = e.currentTarget.parentElement;
                       if (parent) {
                         const textNode = document.createElement('h3');
-                        textNode.className = 'text-xl leading-6 font-bold text-blue-600';
+                        textNode.className = `text-xl leading-6 font-bold ${
+                          theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                        }`;
                         textNode.textContent = 'Taskly';
                         parent.appendChild(textNode);
                       }
                     }}
                   />
                   <div>
-                    <h3 className="text-xl font-bold text-gray-900">Create New Task</h3>
-                    <p className="mt-1 max-w-2xl text-sm text-gray-600">Fill in the details for your new task</p>
+                    <h3 className={`text-xl font-bold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>Create New Task</h3>
+                    <p className={`mt-1 max-w-2xl text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Fill in the details for your new task</p>
                   </div>
                 </div>
               </motion.div>
@@ -142,10 +148,12 @@ export default function CreateTaskPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.2 }}
-                className="px-6 py-6 sm:px-8 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6"
+                className={`px-6 py-6 sm:px-8 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6 ${
+                  theme === 'dark' ? 'text-white' : 'text-gray-900'
+                }`}
               >
                 <div className="sm:col-span-6">
-                  <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="title" className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} mb-1`}>
                     Title *
                   </label>
                   <div className="mt-1">
@@ -156,13 +164,19 @@ export default function CreateTaskPage() {
                       value={formData.title}
                       onChange={handleChange}
                       required
-                      className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-200"
+                      className={`appearance-none relative block w-full px-4 py-3 border ${
+                        theme === 'dark'
+                          ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400'
+                          : 'border-gray-300 placeholder-gray-500 text-gray-900'
+                      } rounded-lg focus:outline-none focus:ring-2 ${
+                        theme === 'dark' ? 'focus:ring-blue-500 focus:border-blue-500' : 'focus:ring-blue-500 focus:border-blue-500'
+                      } sm:text-sm transition duration-200`}
                     />
                   </div>
                 </div>
 
                 <div className="sm:col-span-6">
-                  <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="description" className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} mb-1`}>
                     Description
                   </label>
                   <div className="mt-1">
@@ -172,13 +186,19 @@ export default function CreateTaskPage() {
                       rows={4}
                       value={formData.description}
                       onChange={handleChange}
-                      className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-200"
+                      className={`appearance-none relative block w-full px-4 py-3 border ${
+                        theme === 'dark'
+                          ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400'
+                          : 'border-gray-300 placeholder-gray-500 text-gray-900'
+                      } rounded-lg focus:outline-none focus:ring-2 ${
+                        theme === 'dark' ? 'focus:ring-blue-500 focus:border-blue-500' : 'focus:ring-blue-500 focus:border-blue-500'
+                      } sm:text-sm transition duration-200`}
                     />
                   </div>
                 </div>
 
                 <div className="sm:col-span-3">
-                  <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="status" className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} mb-1`}>
                     Status
                   </label>
                   <div className="mt-1">
@@ -187,7 +207,13 @@ export default function CreateTaskPage() {
                       name="status"
                       value={formData.status}
                       onChange={handleChange}
-                      className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-200"
+                      className={`appearance-none relative block w-full px-4 py-3 border ${
+                        theme === 'dark'
+                          ? 'border-gray-600 bg-gray-700 text-white'
+                          : 'border-gray-300 text-gray-900'
+                      } rounded-lg focus:outline-none focus:ring-2 ${
+                        theme === 'dark' ? 'focus:ring-blue-500 focus:border-blue-500' : 'focus:ring-blue-500 focus:border-blue-500'
+                      } sm:text-sm transition duration-200`}
                     >
                       <option value="pending">Pending</option>
                       <option value="in-progress">In Progress</option>
@@ -197,7 +223,7 @@ export default function CreateTaskPage() {
                 </div>
 
                 <div className="sm:col-span-3">
-                  <label htmlFor="priority" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="priority" className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} mb-1`}>
                     Priority
                   </label>
                   <div className="mt-1">
@@ -206,7 +232,13 @@ export default function CreateTaskPage() {
                       name="priority"
                       value={formData.priority}
                       onChange={handleChange}
-                      className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-200"
+                      className={`appearance-none relative block w-full px-4 py-3 border ${
+                        theme === 'dark'
+                          ? 'border-gray-600 bg-gray-700 text-white'
+                          : 'border-gray-300 text-gray-900'
+                      } rounded-lg focus:outline-none focus:ring-2 ${
+                        theme === 'dark' ? 'focus:ring-blue-500 focus:border-blue-500' : 'focus:ring-blue-500 focus:border-blue-500'
+                      } sm:text-sm transition duration-200`}
                     >
                       <option value="low">Low</option>
                       <option value="medium">Medium</option>
@@ -216,7 +248,7 @@ export default function CreateTaskPage() {
                 </div>
 
                 <div className="sm:col-span-3">
-                  <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="dueDate" className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} mb-1`}>
                     Due Date
                   </label>
                   <div className="mt-1">
@@ -226,13 +258,19 @@ export default function CreateTaskPage() {
                       id="dueDate"
                       value={formData.dueDate}
                       onChange={handleChange}
-                      className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-200"
+                      className={`appearance-none relative block w-full px-4 py-3 border ${
+                        theme === 'dark'
+                          ? 'border-gray-600 bg-gray-700 text-white'
+                          : 'border-gray-300 text-gray-900'
+                      } rounded-lg focus:outline-none focus:ring-2 ${
+                        theme === 'dark' ? 'focus:ring-blue-500 focus:border-blue-500' : 'focus:ring-blue-500 focus:border-blue-500'
+                      } sm:text-sm transition duration-200`}
                     />
                   </div>
                 </div>
 
                 <div className="sm:col-span-3">
-                  <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="category" className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} mb-1`}>
                     Category
                   </label>
                   <div className="mt-1">
@@ -242,7 +280,13 @@ export default function CreateTaskPage() {
                       id="category"
                       value={formData.category}
                       onChange={handleChange}
-                      className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-200"
+                      className={`appearance-none relative block w-full px-4 py-3 border ${
+                        theme === 'dark'
+                          ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400'
+                          : 'border-gray-300 placeholder-gray-500 text-gray-900'
+                      } rounded-lg focus:outline-none focus:ring-2 ${
+                        theme === 'dark' ? 'focus:ring-blue-500 focus:border-blue-500' : 'focus:ring-blue-500 focus:border-blue-500'
+                      } sm:text-sm transition duration-200`}
                     />
                   </div>
                 </div>
@@ -252,18 +296,30 @@ export default function CreateTaskPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.3 }}
-                className="px-6 py-6 bg-gray-50 sm:px-8 flex justify-end space-x-4 border-t border-gray-200"
+                className={`px-6 py-6 ${
+                  theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'
+                } sm:px-8 flex justify-end space-x-4 border-t ${
+                  theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+                }`}
               >
                 <Link
                   href="/tasks"
-                  className="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                  className={`inline-flex items-center px-6 py-3 border ${
+                    theme === 'dark'
+                      ? 'border-gray-600 text-gray-300 bg-gray-600 hover:bg-gray-500'
+                      : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+                  } text-base font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200`}
                 >
                   Cancel
                 </Link>
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-all duration-200"
+                  className={`inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white ${
+                    theme === 'dark'
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
+                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
+                  } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-all duration-200`}
                 >
                   {isLoading ? (
                     <span className="flex items-center">

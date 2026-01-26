@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../../../lib/auth-context';
 import Toast from '../../../components/Toast';
+import PasswordVisibilityToggle from '../../../components/PasswordVisibilityToggle';
 import { motion } from 'framer-motion';
 
 export default function LoginPage() {
@@ -143,28 +144,16 @@ export default function LoginPage() {
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                 Password
               </label>
-              <input
+              <PasswordVisibilityToggle
                 id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-200"
+                onChange={setPassword}
                 placeholder="Enter your password"
+                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-200"
               />
             </div>
           </div>
 
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, delay: 0.3 }}
-            className="text-xs text-gray-500 bg-blue-50 p-3 rounded-lg"
-          >
-            <p>Demo credentials: Use any email and password to log in</p>
-          </motion.div>
 
           <motion.div
             initial={{ opacity: 0, y: 10 }}

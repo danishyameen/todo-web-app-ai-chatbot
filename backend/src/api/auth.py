@@ -1,22 +1,33 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from sqlmodel import Session
 from typing import Dict
+import uuid
 
 from ..db.session import get_session
 from ..models.user import UserCreate, UserLogin, UserUpdate
 from ..services.auth_service import AuthService
-from ..utils.jwt_utils import verify_access_token
+from ..utils.jwt_better_auth import JWTBearer
 from ..utils.exceptions import handle_database_error
+
+# Initialize rate limiter for this module
+limiter = Limiter(key_func=get_remote_address)
 
 
 router = APIRouter()
+
+# Create JWT Bearer instance for token verification
+jwt_bearer = JWTBearer()
 
 
 @router.post("/register",
              response_model=Dict[str, str],
              summary="Register a new user",
              description="Create a new user account with the provided details.")
-def register(user_create: UserCreate, session: Session = Depends(get_session)):
+@limiter.limit("10/hour")  # Limit to 10 registrations per hour per IP
+def register(request: Request, user_create: UserCreate, session: Session = Depends(get_session)):
     """Register a new user."""
     auth_service = AuthService(session)
 
@@ -32,9 +43,13 @@ def register(user_create: UserCreate, session: Session = Depends(get_session)):
             "email": user.email
         }
     except ValueError as e:
+        # Log the specific error for debugging but return generic message to client
+        import logging
+        logging.error(f"User registration error: {str(e)}")
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
+            detail="Invalid registration data"
         )
     except HTTPException:
         # Re-raise HTTP exceptions as-is
@@ -47,16 +62,21 @@ def register(user_create: UserCreate, session: Session = Depends(get_session)):
              response_model=Dict[str, str],
              summary="Login a user",
              description="Authenticate a user and return access tokens.")
-def login(user_login: UserLogin, session: Session = Depends(get_session)):
+@limiter.limit("5/minute")  # Limit to 5 login attempts per minute per IP
+def login(request: Request, user_login: UserLogin, session: Session = Depends(get_session)):
     """Login a user and return access tokens."""
     auth_service = AuthService(session)
 
     user = auth_service.authenticate_user(user_login.email, user_login.password)
 
     if not user:
+        # Add a small delay to prevent timing attacks
+        import time
+        time.sleep(0.5)
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
+            detail="Invalid credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -91,10 +111,14 @@ def refresh_token(refresh_token: str, session: Session = Depends(get_session)):
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token",
+            detail="Invalid or expired refresh token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except Exception:
+    except Exception as e:
+        # Log the specific error for debugging but return generic message to client
+        import logging
+        logging.error(f"Token refresh error: {str(e)}")
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Token refresh failed"
@@ -113,11 +137,11 @@ def logout():
 @router.get("/me",
             summary="Get current user info",
             description="Retrieve information about the currently authenticated user based on the provided token.")
-def get_current_user(token: str, session: Session = Depends(get_session)):
+def get_current_user(request: Request, token: str = Depends(jwt_bearer), session: Session = Depends(get_session)):
     """Get current user info based on the provided token."""
     try:
-        payload = verify_access_token(token)
-        user_id = payload.get("sub")
+        # The token has already been verified by the JWTBearer, and user_id is in request.state
+        user_id = request.state.user_id
 
         if not user_id:
             raise HTTPException(
@@ -144,7 +168,11 @@ def get_current_user(token: str, session: Session = Depends(get_session)):
         }
     except HTTPException:
         raise
-    except Exception:
+    except Exception as e:
+        # Log the specific error for debugging but return generic message to client
+        import logging
+        logging.error(f"Get current user error: {str(e)}")
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token"
@@ -154,11 +182,11 @@ def get_current_user(token: str, session: Session = Depends(get_session)):
 @router.put("/profile",
             summary="Update user profile",
             description="Update the authenticated user's profile information.")
-def update_profile(user_update: UserUpdate, token: str = Depends(verify_access_token), session: Session = Depends(get_session)):
+def update_profile(user_update: UserUpdate, request: Request, token: str = Depends(jwt_bearer), session: Session = Depends(get_session)):
     """Update user profile information."""
     try:
-        # Extract user ID from token
-        current_user_id = token.get("sub")
+        # The token has already been verified by the JWTBearer, and user_id is in request.state
+        current_user_id = request.state.user_id
 
         if not current_user_id:
             raise HTTPException(
@@ -181,7 +209,7 @@ def update_profile(user_update: UserUpdate, token: str = Depends(verify_access_t
         # Prevent changing email to an existing one
         if 'email' in update_data:
             existing_user = auth_service.get_user_by_email(update_data['email'])
-            if existing_user and existing_user.id != user.id:
+            if existing_user and str(existing_user.id) != current_user_id:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Email already registered"
@@ -206,4 +234,8 @@ def update_profile(user_update: UserUpdate, token: str = Depends(verify_access_t
         # Re-raise HTTP exceptions as-is
         raise
     except Exception as e:
+        # Log the specific error for debugging but return generic message to client
+        import logging
+        logging.error(f"Profile update error: {str(e)}")
+
         handle_database_error(e, "profile update")

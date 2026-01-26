@@ -1,8 +1,8 @@
-# Todo Web Application - Backend
+# Todo AI Chatbot - Backend
 
 ## Overview
 
-The backend is built with FastAPI and provides a RESTful API for the Todo Web Application. It handles user authentication, task management, and category organization.
+The backend is built with FastAPI and provides a RESTful API for the Todo AI Chatbot. It handles user authentication, task management, category organization, and AI-powered natural language processing for task management.
 
 ## Technologies Used
 
@@ -12,6 +12,9 @@ The backend is built with FastAPI and provides a RESTful API for the Todo Web Ap
 - **Alembic**: Database migration tool
 - **PyJWT**: JSON Web Token implementation for authentication
 - **PassLib**: Password hashing and verification
+- **AI Agent Service**: Natural language processing for task management
+- **MCP Tools**: Model Control Plane tools for task operations
+- **Conversation Persistence**: Database models for chat history
 
 ## Installation
 
@@ -73,6 +76,11 @@ ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
 - `POST /api/categories` - Create a new category
 - `PUT /api/categories/{category_id}` - Update an existing category
 - `DELETE /api/categories/{category_id}` - Delete a category
+
+### Chat (`/api/chat`)
+
+- `POST /api/{user_id}/chat` - Send a message to the AI assistant
+- `GET /api/{user_id}/chat/{conversation_id}` - Get conversation history
 
 ## Running the Application
 

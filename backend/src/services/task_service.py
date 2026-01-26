@@ -8,7 +8,15 @@ from ..models.user import User
 
 
 class TaskService:
+    """Service class for handling business logic related to tasks."""
+
     def __init__(self, session: Session):
+        """
+        Initialize the TaskService with a database session.
+
+        Args:
+            session: SQLModel database session for performing operations
+        """
         self.session = session
 
     def get_tasks_by_user(
@@ -19,7 +27,19 @@ class TaskService:
         limit: Optional[int] = 100,
         offset: Optional[int] = 0
     ) -> List[Task]:
-        """Get tasks for a user with optional filters and pagination."""
+        """
+        Get tasks for a user with optional filters and pagination.
+
+        Args:
+            user_id: UUID of the user whose tasks to retrieve
+            status: Optional status filter (pending, in-progress, completed)
+            priority: Optional priority filter (low, medium, high)
+            limit: Maximum number of tasks to return (default 100, max 1000)
+            offset: Number of tasks to skip for pagination (default 0)
+
+        Returns:
+            List of Task objects matching the criteria
+        """
         query = select(Task).where(Task.user_id == user_id)
 
         if status:
@@ -88,46 +108,95 @@ class TaskService:
         return tasks
 
     def create_task(self, task_create: TaskCreate, user_id: uuid.UUID) -> Task:
-        """Create a new task for a user."""
-        task_data = task_create.dict()
-        task_data['user_id'] = user_id
+        """
+        Create a new task for a user.
 
-        db_task = Task(**task_data)
-        self.session.add(db_task)
-        self.session.commit()
-        self.session.refresh(db_task)
+        Args:
+            task_create: TaskCreate object containing task details
+            user_id: UUID of the user creating the task
 
-        return db_task
+        Returns:
+            The created Task object
+
+        Raises:
+            Exception: If there's an error during task creation
+        """
+        try:
+            task_data = task_create.dict()
+            task_data['user_id'] = user_id
+
+            db_task = Task(**task_data)
+            self.session.add(db_task)
+            self.session.commit()
+            self.session.refresh(db_task)
+
+            return db_task
+        except Exception as e:
+            self.session.rollback()
+            raise e
 
     def update_task(self, task_id: uuid.UUID, task_update: TaskUpdate, user_id: uuid.UUID) -> Optional[Task]:
-        """Update a task if it belongs to the user."""
-        db_task = self.session.get(Task, task_id)
+        """
+        Update a task if it belongs to the user.
 
-        if not db_task or db_task.user_id != user_id:
-            return None
+        Args:
+            task_id: UUID of the task to update
+            task_update: TaskUpdate object containing fields to update
+            user_id: UUID of the user attempting to update the task
 
-        # Update the task with provided fields
-        update_data = task_update.dict(exclude_unset=True)
-        for field, value in update_data.items():
-            setattr(db_task, field, value)
+        Returns:
+            The updated Task object if successful, None if task doesn't exist or doesn't belong to user
 
-        self.session.add(db_task)
-        self.session.commit()
-        self.session.refresh(db_task)
+        Raises:
+            Exception: If there's an error during task update
+        """
+        try:
+            db_task = self.session.get(Task, task_id)
 
-        return db_task
+            if not db_task or db_task.user_id != user_id:
+                return None
+
+            # Update the task with provided fields
+            update_data = task_update.dict(exclude_unset=True)
+            for field, value in update_data.items():
+                setattr(db_task, field, value)
+
+            self.session.add(db_task)
+            self.session.commit()
+            self.session.refresh(db_task)
+
+            return db_task
+        except Exception as e:
+            self.session.rollback()
+            raise e
 
     def delete_task(self, task_id: uuid.UUID, user_id: uuid.UUID) -> bool:
-        """Delete a task if it belongs to the user."""
-        db_task = self.session.get(Task, task_id)
+        """
+        Delete a task if it belongs to the user.
 
-        if not db_task or db_task.user_id != user_id:
-            return False
+        Args:
+            task_id: UUID of the task to delete
+            user_id: UUID of the user attempting to delete the task
 
-        self.session.delete(db_task)
-        self.session.commit()
+        Returns:
+            True if task was successfully deleted, False if task doesn't exist or doesn't belong to user
 
-        return True
+        Raises:
+            Exception: If there's an error during task deletion
+        """
+        try:
+            db_task = self.session.get(Task, task_id)
+
+            if not db_task or db_task.user_id != user_id:
+                return False
+
+            self.session.delete(db_task)
+            self.session.commit()
+
+            return True
+        except Exception as e:
+            self.session.rollback()
+            raise e
 
     def get_tasks_by_date_range(
         self,
@@ -168,53 +237,61 @@ class TaskService:
 
     def bulk_update_tasks(self, task_ids: List[uuid.UUID], update_data: TaskUpdate, user_id: uuid.UUID) -> int:
         """Bulk update tasks for a user."""
-        # Get all tasks that belong to the user
-        query = select(Task).where(
-            Task.id.in_(task_ids),
-            Task.user_id == user_id
-        )
-        tasks = self.session.exec(query).all()
+        try:
+            # Get all tasks that belong to the user
+            query = select(Task).where(
+                Task.id.in_(task_ids),
+                Task.user_id == user_id
+            )
+            tasks = self.session.exec(query).all()
 
-        # Check if all requested tasks were found and belong to the user
-        found_task_ids = {task.id for task in tasks}
-        requested_task_ids = set(task_ids)
+            # Check if all requested tasks were found and belong to the user
+            found_task_ids = {task.id for task in tasks}
+            requested_task_ids = set(task_ids)
 
-        if len(found_task_ids) != len(requested_task_ids):
-            missing_task_ids = requested_task_ids - found_task_ids
-            raise ValueError(f"Some tasks not found or not owned by user: {list(missing_task_ids)}")
+            if len(found_task_ids) != len(requested_task_ids):
+                missing_task_ids = requested_task_ids - found_task_ids
+                raise ValueError(f"Some tasks not found or not owned by user: {list(missing_task_ids)}")
 
-        # Update all tasks
-        update_dict = update_data.dict(exclude_unset=True)
-        for task in tasks:
-            for field, value in update_dict.items():
-                setattr(task, field, value)
+            # Update all tasks
+            update_dict = update_data.dict(exclude_unset=True)
+            for task in tasks:
+                for field, value in update_dict.items():
+                    setattr(task, field, value)
 
-        self.session.add_all(tasks)
-        self.session.commit()
+            self.session.add_all(tasks)
+            self.session.commit()
 
-        return len(tasks)
+            return len(tasks)
+        except Exception as e:
+            self.session.rollback()
+            raise e
 
     def bulk_delete_tasks(self, task_ids: List[uuid.UUID], user_id: uuid.UUID) -> int:
         """Bulk delete tasks for a user."""
-        # Get all tasks that belong to the user
-        query = select(Task).where(
-            Task.id.in_(task_ids),
-            Task.user_id == user_id
-        )
-        tasks = self.session.exec(query).all()
+        try:
+            # Get all tasks that belong to the user
+            query = select(Task).where(
+                Task.id.in_(task_ids),
+                Task.user_id == user_id
+            )
+            tasks = self.session.exec(query).all()
 
-        # Check if all requested tasks were found and belong to the user
-        found_task_ids = {task.id for task in tasks}
-        requested_task_ids = set(task_ids)
+            # Check if all requested tasks were found and belong to the user
+            found_task_ids = {task.id for task in tasks}
+            requested_task_ids = set(task_ids)
 
-        if len(found_task_ids) != len(requested_task_ids):
-            missing_task_ids = requested_task_ids - found_task_ids
-            raise ValueError(f"Some tasks not found or not owned by user: {list(missing_task_ids)}")
+            if len(found_task_ids) != len(requested_task_ids):
+                missing_task_ids = requested_task_ids - found_task_ids
+                raise ValueError(f"Some tasks not found or not owned by user: {list(missing_task_ids)}")
 
-        # Delete all tasks
-        for task in tasks:
-            self.session.delete(task)
+            # Delete all tasks
+            for task in tasks:
+                self.session.delete(task)
 
-        self.session.commit()
+            self.session.commit()
 
-        return len(tasks)
+            return len(tasks)
+        except Exception as e:
+            self.session.rollback()
+            raise e

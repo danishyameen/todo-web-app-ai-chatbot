@@ -23,7 +23,6 @@ def seed_database():
 
         if not existing_user:
             admin_user = User(
-                id=uuid.uuid4(),
                 email="admin@example.com",
                 first_name="Admin",
                 last_name="User",
@@ -52,7 +51,6 @@ def seed_database():
 
             if not existing_category:
                 category = Category(
-                    id=uuid.uuid4(),
                     name=name,
                     description=fake.text(max_nb_chars=100),
                     user_id=user_id
@@ -75,7 +73,6 @@ def seed_database():
 
         for i in range(20):  # Create 20 sample tasks
             task = Task(
-                id=uuid.uuid4(),
                 title=fake.sentence(nb_words=6),
                 description=fake.paragraph(nb_sentences=3),
                 status=fake.random_element(elements=statuses),

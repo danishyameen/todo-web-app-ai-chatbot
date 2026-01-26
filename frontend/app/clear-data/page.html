@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Application Data</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        h1 {
+            color: #d9534f;
+        }
+        .btn {
+            background-color: #d9534f;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        .btn:hover {
+            background-color: #c9302c;
+        }
+        .btn-success {
+            background-color: #5cb85c;
+        }
+        .btn-success:hover {
+            background-color: #449d44;
+        }
+        .log-container {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 20px;
+            text-align: left;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .status.success {
+            background-color: #dff0d8;
+            color: #3c763d;
+            border: 1px solid #d6e9c6;
+        }
+        .status.warning {
+            background-color: #fcf8e3;
+            color: #8a6d3b;
+            border: 1px solid #faebcc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Clear Application Data</h1>
+        <p>This tool will remove all stored data for the Todo Web Application from your browser.</p>
+        
+        <div class="status warning">
+            <strong>Warning:</strong> This will permanently delete all your tasks, user data, and preferences. This action cannot be undone.
+        </div>
+        
+        <button id="clearDataBtn" class="btn">Clear All Data Now</button>
+        <button id="refreshBtn" class="btn btn-success" style="display:none;">Refresh Page</button>
+        
+        <div id="statusMessage" class="status" style="display:none;"></div>
+        
+        <div class="log-container">
+            <h3>Operation Log:</h3>
+            <pre id="logOutput"></pre>
+        </div>
+    </div>
+
+    <script>
+        const logOutput = document.getElementById('logOutput');
+        const statusMessage = document.getElementById('statusMessage');
+        const clearDataBtn = document.getElementById('clearDataBtn');
+        const refreshBtn = document.getElementById('refreshBtn');
+        
+        function addToLog(message) {
+            logOutput.textContent += message + '\n';
+            logOutput.scrollTop = logOutput.scrollHeight; // Auto-scroll to bottom
+        }
+        
+        function showStatus(message, type) {
+            statusMessage.textContent = message;
+            statusMessage.className = `status ${type}`;
+            statusMessage.style.display = 'block';
+        }
+        
+        function clearAppData() {
+            addToLog('Starting to clear application data...');
+            
+            // Clear sessionStorage
+            if (window.sessionStorage) {
+                const sessionStorageKeysToRemove = [];
+                
+                for (let i = 0; i < sessionStorage.length; i++) {
+                    const key = sessionStorage.key(i);
+                    if (key && (
+                        key.startsWith('tasks_') || 
+                        key.includes('task') || 
+                        key.includes('user') || 
+                        key.includes('auth') || 
+                        key.includes('current') ||
+                        key.includes('csrf') ||
+                        key === 'currentUser' ||
+                        key === 'authToken' ||
+                        key === 'csrfToken' ||
+                        key.startsWith('better-auth-')
+                    )) {
+                        sessionStorageKeysToRemove.push(key);
+                    }
+                }
+                
+                // Remove all identified keys
+                sessionStorageKeysToRemove.forEach(key => {
+                    sessionStorage.removeItem(key);
+                    addToLog(`Removed from sessionStorage: ${key}`);
+                });
+                
+                // Also clear all users data if present
+                if (sessionStorage.getItem('users')) {
+                    sessionStorage.removeItem('users');
+                    addToLog('Removed from sessionStorage: users');
+                }
+                
+                addToLog(`Cleared ${sessionStorageKeysToRemove.length} items from sessionStorage`);
+            }
+            
+            // Clear localStorage
+            if (window.localStorage) {
+                const localStorageKeysToRemove = [];
+                
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && (
+                        key.startsWith('tasks_') || 
+                        key.includes('task') || 
+                        key.includes('user') || 
+                        key.includes('auth') || 
+                        key.includes('current') ||
+                        key.includes('csrf') ||
+                        key === 'currentUser' ||
+                        key === 'authToken' ||
+                        key === 'csrfToken' ||
+                        key.startsWith('better-auth-')
+                    )) {
+                        localStorageKeysToRemove.push(key);
+                    }
+                }
+                
+                // Remove all identified keys
+                localStorageKeysToRemove.forEach(key => {
+                    localStorage.removeItem(key);
+                    addToLog(`Removed from localStorage: ${key}`);
+                });
+                
+                // Also clear all users data if present
+                if (localStorage.getItem('users')) {
+                    localStorage.removeItem('users');
+                    addToLog('Removed from localStorage: users');
+                }
+                
+                addToLog(`Cleared ${localStorageKeysToRemove.length} items from localStorage`);
+            }
+            
+            addToLog('All application data has been cleared from browser storage.');
+            
+            showStatus('All application data has been successfully cleared!', 'success');
+            clearDataBtn.style.display = 'none';
+            refreshBtn.style.display = 'inline-block';
+        }
+        
+        clearDataBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to clear all application data? This will remove all tasks, preferences, and user data from this device. This action cannot be undone.')) {
+                clearAppData();
+            }
+        });
+        
+        refreshBtn.addEventListener('click', function() {
+            window.location.href = '/';
+        });
+        
+        // Initialize
+        addToLog('Ready to clear application data. Click "Clear All Data Now" to proceed.');
+    </script>
+</body>
+</html>

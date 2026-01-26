@@ -4,10 +4,13 @@ from sqlalchemy import pool
 from alembic import context
 
 # Import models for autogenerate support
-from src.models import user, task
-from src.db.session import engine
-from src.models.user import User
+from src.models.user import User, UserCreate, UserLogin, UserUpdate, UserRead
 from src.models.task import Task
+from src.models.category import Category
+from src.models.conversation import Conversation
+from src.models.message import Message
+from src.models.recurring_task import RecurringTask
+from src.db.session import engine
 
 from src.config.settings import settings
 

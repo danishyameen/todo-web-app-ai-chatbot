@@ -7,6 +7,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import ReviewsCarousel from '../components/ReviewsCarousel';
 import { motion } from 'framer-motion';
+import { useTheme } from '../lib/theme-context';
 
 export default function HomePage() {
   const router = useRouter();

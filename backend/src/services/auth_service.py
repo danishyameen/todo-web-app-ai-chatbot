@@ -4,7 +4,7 @@ from datetime import timedelta
 import uuid
 
 from ..models.user import User, UserCreate, UserLogin
-from ..utils.jwt_utils import hash_password, verify_password, create_access_token, create_refresh_token, create_token_payload
+from ..utils.jwt_utils import hash_password, verify_password, create_access_token, create_refresh_token, create_token_payload, verify_refresh_token
 from ..utils.exceptions import handle_database_error
 from ..config.settings import settings
 
@@ -16,6 +16,9 @@ class AuthService:
     def register_user(self, user_create: UserCreate) -> User:
         """Register a new user."""
         try:
+            # Validate password strength
+            self._validate_password_strength(user_create.password)
+
             # Check if user with this email already exists
             existing_user = self.session.exec(
                 select(User).where(User.email == user_create.email)
@@ -43,6 +46,24 @@ class AuthService:
         except Exception as e:
             self.session.rollback()
             handle_database_error(e, "user registration")
+
+    def _validate_password_strength(self, password: str) -> bool:
+        """Validate password strength requirements."""
+        if len(password) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+
+        if len(password) > 128:  # Prevent extremely long passwords
+            raise ValueError("Password must be less than 128 characters")
+
+        has_upper = any(c.isupper() for c in password)
+        has_lower = any(c.islower() for c in password)
+        has_digit = any(c.isdigit() for c in password)
+        has_special = any(c in "!@#$%^&*()_+-=[]{}|;:,.<>?" for c in password)
+
+        if not (has_upper and has_lower and has_digit and has_special):
+            raise ValueError("Password must contain at least one uppercase letter, one lowercase letter, one digit, and one special character")
+
+        return True
 
     def authenticate_user(self, email: str, password: str) -> Optional[User]:
         """Authenticate a user with email and password."""

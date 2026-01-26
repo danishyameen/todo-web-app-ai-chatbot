@@ -1,0 +1,28 @@
+{
+  "servers": {
+    "github": {
+      "enabled": true,
+      "type": "github",
+      "config": {
+        "api_base_url": "https://api.github.com",
+        "token": "YOUR_GITHUB_TOKEN_HERE"
+      }
+    },
+    "context7": {
+      "enabled": true,
+      "type": "context7",
+      "config": {
+        "api_base_url": "https://api.context7.com",
+        "api_key": "YOUR_CONTEXT7_API_KEY_HERE"
+      }
+    },
+    "vercel": {
+      "enabled": true,
+      "type": "vercel",
+      "config": {
+        "api_base_url": "https://api.vercel.com",
+        "token": "YOUR_VERCEL_TOKEN_HERE"
+      }
+    }
+  }
+}

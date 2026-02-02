@@ -11,7 +11,7 @@ from datetime import datetime
 
 from ..db.session import get_session
 from ..utils.jwt_better_auth import get_current_user_id
-from ..models.conversation import Conversation, ConversationCreate
+from ..models.conversation import Conversation, ConversationCreate, ConversationUpdate
 from ..models.message import Message, MessageCreate
 from ..services.ai_agent_service import AIAgentService
 
@@ -199,3 +199,265 @@ async def get_conversation_history(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving conversation: {str(e)}")
+
+
+@router.get("/{user_id}/conversations",
+            summary="Get all conversations for a user",
+            description="Retrieve all conversations belonging to a specific user")
+async def get_conversations(
+    user_id: str,
+    session: Session = Depends(get_session),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """
+    Get all conversations for a user
+    """
+    # Verify that the user_id in the URL matches the user_id from the JWT token
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access these conversations")
+
+    try:
+        # Validate user_id is a valid UUID
+        try:
+            user_uuid = uuid.UUID(user_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid user ID format")
+
+        # Get all conversations for the user
+        conversations = session.query(Conversation).filter(
+            Conversation.user_id == user_uuid
+        ).order_by(Conversation.updated_at.desc()).all()
+
+        conversation_list = []
+        for conv in conversations:
+            # Get message count for this conversation
+            message_count = session.query(Message).filter(
+                Message.conversation_id == conv.id
+            ).count()
+
+            conversation_list.append({
+                "id": str(conv.id),
+                "title": conv.title,
+                "userId": str(conv.user_id),
+                "createdAt": conv.created_at.isoformat(),
+                "updatedAt": conv.updated_at.isoformat(),
+                "messageCount": message_count
+            })
+
+        return {
+            "conversations": conversation_list,
+            "success": True
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving conversations: {str(e)}")
+
+
+@router.get("/{user_id}/conversations/{conversation_id}",
+            summary="Get a specific conversation by ID",
+            description="Retrieve a specific conversation by its ID")
+async def get_conversation(
+    user_id: str,
+    conversation_id: uuid.UUID,
+    session: Session = Depends(get_session),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """
+    Get a specific conversation by ID
+    """
+    # Verify that the user_id in the URL matches the user_id from the JWT token
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this conversation")
+
+    try:
+        # Validate user_id is a valid UUID
+        try:
+            user_uuid = uuid.UUID(user_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid user ID format")
+
+        # Get conversation and verify ownership
+        conversation = session.get(Conversation, conversation_id)
+        if not conversation:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        if str(conversation.user_id) != user_id:
+            raise HTTPException(status_code=403, detail="Not authorized to access this conversation")
+
+        # Get message count for this conversation
+        message_count = session.query(Message).filter(
+            Message.conversation_id == conversation_id
+        ).count()
+
+        return {
+            "id": str(conversation.id),
+            "title": conversation.title,
+            "userId": str(conversation.user_id),
+            "createdAt": conversation.created_at.isoformat(),
+            "updatedAt": conversation.updated_at.isoformat(),
+            "messageCount": message_count,
+            "success": True
+        }
+
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid conversation ID format")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving conversation: {str(e)}")
+
+
+@router.post("/{user_id}/conversations",
+             summary="Create a new conversation",
+             description="Create a new conversation for the specified user")
+async def create_conversation(
+    user_id: str,
+    conversation_data: ConversationCreate,
+    session: Session = Depends(get_session),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """
+    Create a new conversation
+    """
+    # Verify that the user_id in the URL matches the user_id from the JWT token
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to create conversations for this user")
+
+    try:
+        # Validate user_id is a valid UUID
+        user_uuid = uuid.UUID(user_id)
+
+        # Ensure the conversation is created for the authenticated user
+        if conversation_data.user_id != user_uuid:
+            raise HTTPException(status_code=403, detail="Cannot create conversation for another user")
+
+        # Create the conversation
+        conversation = Conversation(
+            title=conversation_data.title,
+            user_id=conversation_data.user_id,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+
+        session.add(conversation)
+        session.commit()
+        session.refresh(conversation)
+
+        return {
+            "id": str(conversation.id),
+            "title": conversation.title,
+            "userId": str(conversation.user_id),
+            "createdAt": conversation.created_at.isoformat(),
+            "updatedAt": conversation.updated_at.isoformat(),
+            "success": True
+        }
+
+    except HTTPException:
+        session.rollback()
+        raise
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creating conversation: {str(e)}")
+
+
+@router.put("/{user_id}/conversations/{conversation_id}",
+            summary="Update an existing conversation",
+            description="Update an existing conversation if it belongs to the specified user")
+async def update_conversation(
+    user_id: str,
+    conversation_id: uuid.UUID,
+    conversation_update: ConversationUpdate,
+    session: Session = Depends(get_session),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """
+    Update an existing conversation
+    """
+    # Verify that the user_id in the URL matches the user_id from the JWT token
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to update this conversation")
+
+    try:
+        # Get conversation and verify ownership
+        conversation = session.get(Conversation, conversation_id)
+        if not conversation:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        if str(conversation.user_id) != user_id:
+            raise HTTPException(status_code=403, detail="Not authorized to update this conversation")
+
+        # Update the conversation with provided fields
+        update_data = conversation_update.dict(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(conversation, field, value)
+
+        # Update the timestamp
+        conversation.updated_at = datetime.utcnow()
+
+        session.add(conversation)
+        session.commit()
+        session.refresh(conversation)
+
+        return {
+            "id": str(conversation.id),
+            "title": conversation.title,
+            "userId": str(conversation.user_id),
+            "createdAt": conversation.created_at.isoformat(),
+            "updatedAt": conversation.updated_at.isoformat(),
+            "success": True
+        }
+
+    except HTTPException:
+        session.rollback()
+        raise
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating conversation: {str(e)}")
+
+
+@router.delete("/{user_id}/conversations/{conversation_id}",
+               summary="Delete a conversation",
+               description="Delete a conversation by its ID if it belongs to the specified user")
+async def delete_conversation(
+    user_id: str,
+    conversation_id: uuid.UUID,
+    session: Session = Depends(get_session),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """
+    Delete a conversation
+    """
+    # Verify that the user_id in the URL matches the user_id from the JWT token
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this conversation")
+
+    try:
+        # Get conversation and verify ownership
+        conversation = session.get(Conversation, conversation_id)
+        if not conversation:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        if str(conversation.user_id) != user_id:
+            raise HTTPException(status_code=403, detail="Not authorized to delete this conversation")
+
+        # Delete all messages in the conversation first (due to foreign key constraint)
+        session.query(Message).filter(
+            Message.conversation_id == conversation_id
+        ).delete()
+
+        # Delete the conversation
+        session.delete(conversation)
+        session.commit()
+
+        return {
+            "message": "Conversation deleted successfully",
+            "success": True
+        }
+
+    except HTTPException:
+        session.rollback()
+        raise
+    except Exception as e:
+        session.rollback()

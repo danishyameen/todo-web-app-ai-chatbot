@@ -57,8 +57,20 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.className} h-full bg-gray-50`}>
-        <Providers>{children}</Providers>
+      <body className={`${inter.className} min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50`}>
+        <div className="relative min-h-screen">
+          {/* Beautiful background elements */}
+          <div className="fixed inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
+            <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse" style={{animationDelay: '2s'}}></div>
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-indigo-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse" style={{animationDelay: '4s'}}></div>
+          </div>
+
+          {/* Main content */}
+          <main className="relative z-10">
+            <Providers>{children}</Providers>
+          </main>
+        </div>
       </body>
     </html>
   );

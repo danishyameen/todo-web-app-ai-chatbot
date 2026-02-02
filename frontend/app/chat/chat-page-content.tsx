@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { chatService } from '../../lib/chat-service';
+import Header from '../../components/Header';
 
 // Types for our chat system
 type Message = {
@@ -22,7 +23,7 @@ type Conversation = {
   updatedAt: Date;
 };
 
-export default function ChatPage() {
+export default function ChatPageContent() {
   const searchParams = useSearchParams();
   const userIdFromUrl = searchParams.get('userId');
 
@@ -154,94 +155,96 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50">
-      {/* Sidebar for conversations */}
-      <AnimatePresence>
-        {sidebarOpen && (
-          <motion.div
-            initial={{ x: -300, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: -300, opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="w-64 bg-white/80 backdrop-blur-lg border-r border-gray-200/50 flex flex-col shadow-lg"
-          >
-            <div className="p-4 border-b border-gray-200/50">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-800">Conversations</h2>
+    <div className="flex flex-col h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50">
+      <Header />
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar for conversations */}
+        <AnimatePresence>
+          {sidebarOpen && (
+            <motion.div
+              initial={{ x: -300, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -300, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="w-64 bg-white/80 backdrop-blur-lg border-r border-gray-200/50 flex flex-col shadow-lg"
+            >
+              <div className="p-4 border-b border-gray-200/50">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-800">Conversations</h2>
+                  <button
+                    onClick={() => setSidebarOpen(false)}
+                    className="lg:hidden text-gray-500 hover:text-gray-700"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
                 <button
-                  onClick={() => setSidebarOpen(false)}
-                  className="lg:hidden text-gray-500 hover:text-gray-700"
+                  onClick={startNewConversation}
+                  className="mt-3 w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white py-2 px-4 rounded-xl text-sm transition-all duration-300 transform hover:scale-[1.02] shadow-md hover:shadow-lg"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
+                  New Chat
                 </button>
               </div>
-              <button
-                onClick={startNewConversation}
-                className="mt-3 w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white py-2 px-4 rounded-xl text-sm transition-all duration-300 transform hover:scale-[1.02] shadow-md hover:shadow-lg"
-              >
-                New Chat
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              {conversations.map(conversation => (
-                <motion.div
-                  key={conversation.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className={`p-3 border-b border-gray-100/50 cursor-pointer hover:bg-gray-50/80 ${
-                    activeConversationId === conversation.id ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-l-blue-500' : ''
-                  }`}
-                  onClick={() => {
-                    // In a real app, we would load the conversation
-                    console.log('Loading conversation:', conversation.id);
-                  }}
-                >
-                  <div className="font-medium text-sm text-gray-800 truncate">
-                    {conversation.title}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {conversation.updatedAt.toLocaleDateString()}
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-            <div className="p-4 border-t border-gray-200/50 text-sm text-gray-500">
-              User: {userId.substring(0, 8)}...
-            </div>
-          </motion.div>
+              <div className="flex-1 overflow-y-auto">
+                {conversations.map(conversation => (
+                  <motion.div
+                    key={conversation.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className={`p-3 border-b border-gray-100/50 cursor-pointer hover:bg-gray-50/80 ${
+                      activeConversationId === conversation.id ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-l-blue-500' : ''
+                    }`}
+                    onClick={() => {
+                      // In a real app, we would load the conversation
+                      console.log('Loading conversation:', conversation.id);
+                    }}
+                  >
+                    <div className="font-medium text-sm text-gray-800 truncate">
+                      {conversation.title}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {conversation.updatedAt.toLocaleDateString()}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+              <div className="p-4 border-t border-gray-200/50 text-sm text-gray-500">
+                User: {userId.substring(0, 8)}...
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Mobile toggle button */}
+        {!sidebarOpen && (
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="lg:hidden fixed top-20 left-4 z-10 bg-white/80 backdrop-blur-lg p-2 rounded-lg shadow-md border border-gray-200"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+            </svg>
+          </button>
         )}
-      </AnimatePresence>
 
-      {/* Mobile toggle button */}
-      {!sidebarOpen && (
-        <button
-          onClick={() => setSidebarOpen(true)}
-          className="lg:hidden fixed top-4 left-4 z-10 bg-white/80 backdrop-blur-lg p-2 rounded-lg shadow-md border border-gray-200"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-          </svg>
-        </button>
-      )}
-
-      {/* Main chat area */}
-      <div className="flex-1 flex flex-col">
-        {/* Chat header */}
-        <div className="bg-white/70 backdrop-blur-lg border-b border-gray-200/50 p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-semibold text-gray-800">AI Task Assistant</h1>
-              <p className="text-sm text-gray-500">Ask me to create, list, update, or complete tasks</p>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-sm text-gray-500">Online</span>
+        {/* Main chat area */}
+        <div className="flex-1 flex flex-col">
+          {/* Chat header */}
+          <div className="bg-white/70 backdrop-blur-lg border-b border-gray-200/50 p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-semibold text-gray-800">AI Task Assistant</h1>
+                <p className="text-sm text-gray-500">Ask me to create, list, update, or complete tasks</p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-sm text-gray-500">Online</span>
+              </div>
             </div>
           </div>
-        </div>
 
         {/* Messages container */}
         <div className="flex-1 overflow-y-auto p-4 bg-gradient-to-b from-white/30 to-gray-50/30">

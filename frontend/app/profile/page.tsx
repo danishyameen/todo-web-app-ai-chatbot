@@ -10,6 +10,7 @@ import { apiClient } from '../../lib/api-client';
 import PasswordVisibilityToggle from '../../components/PasswordVisibilityToggle';
 import { motion } from 'framer-motion';
 import { useTheme } from '../../lib/theme-context';
+import StorageService from '../../lib/storage-service';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -30,10 +31,10 @@ export default function ProfilePage() {
     confirmPassword: '',
   });
   const [taskStats, setTaskStats] = useState({
-    totalTasks: 0,
-    completedTasks: 0,
-    pendingTasks: 0,
-    inProgressTasks: 0
+    total: 0,
+    completed: 0,
+    pending: 0,
+    inProgress: 0
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -62,46 +63,128 @@ export default function ProfilePage() {
         review: user.review || '',
       });
 
-      // Fetch task statistics
-      if (token) {
-        const fetchTaskStats = async () => {
-          try {
-            const tasks = await apiClient.getTasks(token);
+      // Fetch task statistics using centralized storage service
+      const fetchTaskStats = async () => {
+        try {
+          // Try to get tasks from localStorage first
+          let tasks = StorageService.getTasks(user.id);
 
-            // Calculate stats
-            const totalTasks = tasks.length;
-            const completedTasks = tasks.filter((task: any) => task.status === 'completed').length;
-            const pendingTasks = tasks.filter((task: any) => task.status === 'pending').length;
-            const inProgressTasks = tasks.filter((task: any) => task.status === 'in-progress').length;
-
-            setTaskStats({
-              totalTasks,
-              completedTasks,
-              pendingTasks,
-              inProgressTasks
-            });
-          } catch (error) {
-            console.error('Error fetching task stats:', error);
-            // Set default values if API fails
-            setTaskStats({
-              totalTasks: 0,
-              completedTasks: 0,
-              pendingTasks: 0,
-              inProgressTasks: 0
-            });
-          } finally {
-            setLoading(false);
+          // If no tasks in localStorage and we have a token, try to fetch from API
+          if (tasks.length === 0 && token) {
+            tasks = await apiClient.getTasks(token);
+            // Save to localStorage for offline access
+            StorageService.saveTasks(tasks, user.id);
           }
-        };
 
-        fetchTaskStats();
-      } else {
-        setLoading(false);
-      }
+          // Calculate stats using centralized storage service
+          const stats = StorageService.getTaskStats(user.id);
+          setTaskStats(stats);
+        } catch (error) {
+          console.error('Error fetching task stats:', error);
+          // Fallback to values from centralized storage service
+          const fallbackStats = StorageService.getTaskStats(user.id);
+          setTaskStats(fallbackStats);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchTaskStats();
+
+      // Listen for storage events to update profile across tabs/windows
+      const handleStorageChange = () => {
+        if (user) {
+          const updatedStats = StorageService.getTaskStats(user.id);
+          setTaskStats(updatedStats);
+        }
+      };
+
+      window.addEventListener('storage', handleStorageChange);
+      return () => window.removeEventListener('storage', handleStorageChange);
     } else {
       setLoading(false);
     }
   }, [isAuthenticated, user, token, router]);
+
+  const handleClearData = () => {
+    if (window.confirm('Are you sure you want to clear all your data? This will remove all tasks, preferences, and user data from this device. This action cannot be undone.')) {
+      // Clear all application data using centralized storage service
+      if (user) {
+        StorageService.clearUserData(user.id);
+      }
+
+      // Clear session storage
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        // Clear all items related to the application
+        const keysToRemove: string[] = [];
+
+        // Get all keys that start with common prefixes used by the app
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key && (
+            key.startsWith('tasks_') ||
+            key.includes('task') ||
+            key.includes('user') ||
+            key.includes('auth') ||
+            key.includes('current') ||
+            key.includes('csrf') ||
+            key === 'currentUser' ||
+            key === 'authToken' ||
+            key === 'csrfToken' ||
+            key.startsWith('better-auth-')
+          )) {
+            keysToRemove.push(key);
+          }
+        }
+
+        // Remove all identified keys
+        keysToRemove.forEach(key => {
+          sessionStorage.removeItem(key);
+        });
+
+        // Also clear all users data if present
+        sessionStorage.removeItem('users');
+      }
+
+      // Also clear localStorage if anything was stored there
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const keysToRemove: string[] = [];
+
+        // Get all keys that start with common prefixes used by the app
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (
+            key.startsWith('tasks_') ||
+            key.includes('task') ||
+            key.includes('user') ||
+            key.includes('auth') ||
+            key.includes('current') ||
+            key.includes('csrf') ||
+            key === 'currentUser' ||
+            key === 'authToken' ||
+            key === 'csrfToken' ||
+            key.startsWith('better-auth-')
+          )) {
+            keysToRemove.push(key);
+          }
+        }
+
+        // Remove all identified keys
+        keysToRemove.forEach(key => {
+          localStorage.removeItem(key);
+        });
+
+        // Also clear all users data if present
+        localStorage.removeItem('users');
+      }
+
+      // Show success message
+      alert('All your data has been cleared successfully. The page will now reload.');
+
+      // Reload the page to reflect changes
+      window.location.reload();
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -631,7 +714,7 @@ export default function ProfilePage() {
                     className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl shadow-md border border-blue-100"
                   >
                     <div className="text-center">
-                      <div className="text-3xl font-bold text-blue-700">{taskStats.totalTasks}</div>
+                      <div className="text-3xl font-bold text-blue-700">{taskStats.total}</div>
                       <div className="mt-2 text-sm font-semibold text-blue-600">Total Tasks</div>
                     </div>
                   </motion.div>
@@ -643,7 +726,7 @@ export default function ProfilePage() {
                     className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl shadow-md border border-green-100"
                   >
                     <div className="text-center">
-                      <div className="text-3xl font-bold text-green-700">{taskStats.completedTasks}</div>
+                      <div className="text-3xl font-bold text-green-700">{taskStats.completed}</div>
                       <div className="mt-2 text-sm font-semibold text-green-600">Completed</div>
                     </div>
                   </motion.div>
@@ -655,7 +738,7 @@ export default function ProfilePage() {
                     className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-6 rounded-xl shadow-md border border-yellow-100"
                   >
                     <div className="text-center">
-                      <div className="text-3xl font-bold text-yellow-700">{taskStats.pendingTasks}</div>
+                      <div className="text-3xl font-bold text-yellow-700">{taskStats.pending}</div>
                       <div className="mt-2 text-sm font-semibold text-yellow-600">Pending</div>
                     </div>
                   </motion.div>
@@ -667,7 +750,7 @@ export default function ProfilePage() {
                     className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-xl shadow-md border border-orange-100"
                   >
                     <div className="text-center">
-                      <div className="text-3xl font-bold text-orange-700">{taskStats.inProgressTasks}</div>
+                      <div className="text-3xl font-bold text-orange-700">{taskStats.inProgress}</div>
                       <div className="mt-2 text-sm font-semibold text-orange-600">In Progress</div>
                     </div>
                   </motion.div>

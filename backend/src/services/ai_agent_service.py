@@ -13,7 +13,7 @@ import uuid
 from ..mcp_tools.task_tools import (
     AddTaskParams, ListTasksParams, UpdateTaskParams,
     CompleteTaskParams, DeleteTaskParams,
-    add_task, list_tasks, update_task, complete_task, delete_task
+    add_task, list_tasks, update_task, complete_task, delete_task, delete_all_tasks
 )
 from .mcp_validation_service import get_mcp_validator
 
@@ -67,6 +67,14 @@ class AIIntentClassifier:
                 r'eradicate\s+(the\s+)?(.+)',
                 r'get\s+rid\s+of\s+(the\s+)?(.+)',
             ],
+            'delete_all_tasks': [
+                r'delete\s+all\s+tasks',
+                r'remove\s+all\s+tasks',
+                r'delete\s+every\s+task',
+                r'clear\s+all\s+tasks',
+                r'remove\s+all\s+of\s+my\s+tasks',
+                r'delete\s+my\s+tasks',
+            ],
             'help': [
                 r'help',
                 r'how\s+to\s+use',
@@ -94,6 +102,20 @@ class AIIntentClassifier:
                 r'fields\s+needed',
                 r'information\s+needed',
                 r'what\s+information',
+            ],
+            'update_profile': [
+                r'update\s+my\s+profile',
+                r'change\s+my\s+profile',
+                r'modify\s+my\s+profile',
+                r'edit\s+my\s+profile',
+                r'update\s+profile',
+                r'change\s+profile',
+                r'modify\s+profile',
+                r'edit\s+profile',
+                r'update\s+my\s+(name|email|phone|bio|address)',
+                r'change\s+my\s+(name|email|phone|bio|address)',
+                r'modify\s+my\s+(name|email|phone|bio|address)',
+                r'edit\s+my\s+(name|email|phone|bio|address)',
             ],
         }
 
@@ -125,8 +147,31 @@ class AIIntentClassifier:
         if intent == "add_task":
             # Extract task details from the match
             groups = match.groups()
-            # Usually the last group contains the task description
-            task_desc = groups[-1] if groups[-1] else original_text
+
+            # Find the actual task description among the captured groups
+            # The patterns are structured to capture the task description in the last non-empty group
+            task_desc = ""
+            for group in reversed(groups):
+                if group and isinstance(group, str) and group.strip():
+                    task_desc = group.strip()
+                    break
+
+            # If no specific group was found, use the original text
+            if not task_desc:
+                task_desc = original_text
+                # Remove common phrases like "add task to" or "create task to"
+                clean_patterns = [
+                    r'add\s+(a\s+)?(new\s+)?task\s+(to\s+|for\s+)?',
+                    r'create\s+(a\s+)?(new\s+)?task\s+(to\s+|for\s+)?',
+                    r'make\s+(a\s+)?(new\s+)?task\s+(to\s+|for\s+)?',
+                    r'need\s+to\s+',
+                    r'remember\s+to\s+',
+                    r'don\'t\s+forget\s+to\s+',
+                ]
+
+                import re
+                for pattern in clean_patterns:
+                    task_desc = re.sub(pattern, '', task_desc, flags=re.IGNORECASE).strip()
 
             # Clean up the task description
             task_desc = task_desc.strip().capitalize()
@@ -309,6 +354,10 @@ class AIAgentService:
             return self._handle_update_task(params, user_id, session)
         elif intent == "delete_task":
             return self._handle_delete_task(params, user_id, session)
+        elif intent == "delete_all_tasks":
+            return self._handle_delete_all_tasks(params, user_id, session)
+        elif intent == "update_profile":
+            return self._handle_update_profile(params, user_id, session)
         elif intent == "help":
             # For help intent, pass the original text to the general response handler
             # which has the logic for different help scenarios
@@ -337,18 +386,36 @@ For updating a task, you can change: title, description, priority, due date, or 
         try:
             logger.info(f"Handling add_task for user {user_id} with params: {params}")
 
-            # Create MCP tool parameters
-            add_params = AddTaskParams(
-                title=params.get("title", "Default task"),
-                description=params.get("description", ""),
-                due_date=params.get("due_date"),
-                priority=params.get("priority", "medium"),
-                user_id=user_id
-            )
+            # Extract parameters with defaults
+            title = params.get("title", "").strip()
+            description = params.get("description", "").strip()
+            due_date = params.get("due_date")
+            priority = params.get("priority", "medium")
+
+            # If no title was extracted, try to extract from original text
+            if not title:
+                original_text = params.get("original_text", "")
+                if original_text:
+                    # Remove common phrases and extract the core task
+                    import re
+                    clean_text = re.sub(r'add\s+(a\s+)?(new\s+)?task\s+(to\s+|for\s+)?', '', original_text, flags=re.IGNORECASE).strip()
+                    if clean_text:
+                        title = clean_text.split('.')[0].strip()  # Take the first sentence
+                        if not description:
+                            description = clean_text
 
             # Validate the parameters before executing the tool
-            if not add_params.title.strip():
-                return "I need a title for the task. Please specify what task you'd like to add."
+            if not title:
+                return "I need a title for the task. Please specify what task you'd like to add. For example: 'Add a task to buy groceries' or 'Create task wash the car.'"
+
+            # Create MCP tool parameters
+            add_params = AddTaskParams(
+                title=title,
+                description=description,
+                due_date=due_date,
+                priority=priority,
+                user_id=user_id
+            )
 
             # Execute MCP tool
             result = add_task(add_params, session)
@@ -363,6 +430,7 @@ For updating a task, you can change: title, description, priority, due date, or 
         except Exception as e:
             logger.error(f"Error in _handle_add_task for user {user_id}: {str(e)}")
             return f"Error adding task: {str(e)}"
+
 
     def _handle_list_tasks(self, params: Dict[str, Any], user_id: str, session: Session) -> str:
         """
@@ -384,7 +452,7 @@ For updating a task, you can change: title, description, priority, due date, or 
             result = list_tasks(list_params, session)
 
             if result.success:
-                task_list = result.data.get("tasks", [])
+                task_list = result.data.get("tasks", []) if result.data else []
                 if not task_list:
                     status_display = status if status != "all" else "any"
                     return f"You don't have any {status_display} tasks right now."
@@ -398,7 +466,7 @@ For updating a task, you can change: title, description, priority, due date, or 
                     return f"You have {len(task_list)} {status} tasks:\n{tasks_str}"
             else:
                 logger.warning(f"Failed to list tasks for user {user_id}: {result.message}")
-                return f"Sorry, I couldn't retrieve your tasks: {result.message}"
+                return f"Sorry, I couldn't retrieve your tasks: {result.message or 'Unknown error'}"
 
         except Exception as e:
             logger.error(f"Error in _handle_list_tasks for user {user_id}: {str(e)}")
@@ -414,7 +482,7 @@ For updating a task, you can change: title, description, priority, due date, or 
             # Check if we have a task identifier
             task_identifier = params.get("task_identifier")
 
-            if task_identifier is None:
+            if not task_identifier or task_identifier.strip() == "":
                 return "To complete a task, please specify which task by name or ID. For example: 'Complete the grocery task' or 'Mark task 123 as complete.'"
 
             # If the identifier looks like a number, treat it as an ID
@@ -495,7 +563,7 @@ For updating a task, you can change: title, description, priority, due date, or 
             # Check if we have a task identifier
             task_identifier = params.get("task_identifier")
 
-            if task_identifier is None:
+            if not task_identifier or task_identifier.strip() == "":
                 return "To update a task, please specify which task and what you'd like to change. For example: 'Update the meeting task due date to Friday' or 'Change priority of task 123 to high.'"
 
             # Extract what needs to be updated
@@ -592,7 +660,7 @@ For updating a task, you can change: title, description, priority, due date, or 
             # Check if we have a task identifier
             task_identifier = params.get("task_identifier")
 
-            if task_identifier is None:
+            if not task_identifier or task_identifier.strip() == "":
                 return "To delete a task, please specify which task by name or ID. For example: 'Delete the grocery task' or 'Remove task 123.' WARNING: This action cannot be undone."
 
             # If the identifier looks like a number, treat it as an ID
@@ -608,7 +676,7 @@ For updating a task, you can change: title, description, priority, due date, or 
                 if task and str(task.user_id) == user_id:
                     # Execute MCP tool to delete the task
                     delete_params = DeleteTaskParams(
-                        task_id=task_identifier,  # Keep as string for the params
+                        task_id=str(task_uuid),  # Convert UUID to string for the params
                         user_id=user_id
                     )
                     result = delete_task(delete_params, session)
@@ -662,6 +730,47 @@ For updating a task, you can change: title, description, priority, due date, or 
         except Exception as e:
             logger.error(f"Error in _handle_delete_task for user {user_id}: {str(e)}")
             return f"Error deleting task: {str(e)}"
+
+    def _handle_delete_all_tasks(self, params: Dict[str, Any], user_id: str, session: Session) -> str:
+        """
+        Handle delete all tasks intent
+        """
+        try:
+            logger.info(f"Handling delete_all_tasks for user {user_id}")
+
+            # Call the MCP tool to delete all tasks for the user
+            result = delete_all_tasks(user_id, session)
+
+            if result.success:
+                task_count = result.data.get("deleted_count", 0) if result.data else 0
+                return f"All {task_count} tasks have been deleted successfully. This action cannot be undone."
+            else:
+                logger.warning(f"Failed to delete all tasks for user {user_id}: {result.message}")
+                return f"Sorry, I couldn't delete all tasks: {result.message}"
+
+        except Exception as e:
+            logger.error(f"Error in _handle_delete_all_tasks for user {user_id}: {str(e)}")
+            return f"Error deleting all tasks: {str(e)}"
+
+    def _handle_update_profile(self, params: Dict[str, Any], user_id: str, session: Session) -> str:
+        """
+        Handle profile update intent
+        """
+        try:
+            logger.info(f"Handling update_profile for user {user_id}")
+
+            # Extract information about what to update from the original text
+            original_text = params.get("original_text", "").lower()
+
+            # For now, we'll just return a helpful message since the backend doesn't have profile update MCP tools
+            # In a real implementation, you would have profile update tools
+            return """I'm sorry, but I currently can't update your profile information directly through the chatbot.
+To update your profile, please go to the Profile page in the application and make the changes there.
+You can update your name, email, phone, address, bio, and other profile information from the Profile page."""
+
+        except Exception as e:
+            logger.error(f"Error in _handle_update_profile for user {user_id}: {str(e)}")
+            return f"Error updating profile: {str(e)}"
 
     def _handle_general_response(self, params: Dict[str, Any], intent: str) -> str:
         """
@@ -739,6 +848,11 @@ Examples:
 - "Delete all tasks" (deletes all your tasks)
 
 Note: Use the exact task name as shown in your task list. Deleted tasks cannot be recovered."""
+
+        # Check for profile update help
+        profile_update_keywords = ['update profile', 'change profile', 'modify profile', 'edit profile', 'update my profile', 'change my profile', 'profile update', 'profile change']
+        if any(keyword in original_lower for keyword in profile_update_keywords):
+            return """To update your profile, you can't do it directly through the chatbot, but you can do it from the Profile page in the application. You can update your name, email, phone, address, bio, and other profile information from the Profile page. For example: "Update my name to John Doe" would need to be done on the Profile page."""
 
         # Default response
         return f"I understand you said: '{original_text}'. I'm your AI assistant for managing tasks. You can ask me to add, list, update, or complete tasks. For help, say 'help' or 'how to use this app'. For field list, say 'what fields do you need?'"

@@ -338,3 +338,47 @@ def delete_task(params: DeleteTaskParams, session: Session) -> TaskResponse:
             success=False,
             message=f"Error deleting task: {str(e)}"
         )
+
+
+def delete_all_tasks(user_id: str, session: Session) -> TaskResponse:
+    """
+    MCP Tool: Delete all tasks for a user
+
+    Args:
+        user_id: User ID to delete tasks for
+        session: Database session
+
+    Returns:
+        TaskResponse with success status and deletion result
+    """
+    try:
+        # Convert user_id string to UUID
+        user_uuid = uuid.UUID(user_id)
+
+        # Get all tasks for the user
+        from sqlmodel import select
+        tasks_query = select(Task).where(Task.user_id == user_uuid)
+        user_tasks = session.exec(tasks_query).all()
+
+        # Count tasks to be deleted
+        task_count = len(user_tasks)
+
+        # Delete all tasks
+        for task in user_tasks:
+            session.delete(task)
+
+        session.commit()
+
+        return TaskResponse(
+            success=True,
+            message=f"All {task_count} tasks deleted successfully",
+            data={
+                "deleted_count": task_count
+            }
+        )
+    except Exception as e:
+        session.rollback()
+        return TaskResponse(
+            success=False,
+            message=f"Error deleting all tasks: {str(e)}"
+        )

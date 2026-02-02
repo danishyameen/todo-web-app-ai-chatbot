@@ -8,18 +8,20 @@ import Header from '../../components/Header';
 import { apiClient } from '../../lib/api-client';
 import { motion } from 'framer-motion';
 import { useTheme } from '../../lib/theme-context';
+import StorageService from '../../lib/storage-service';
+import { Task } from '../../types/task';
 
 export default function DashboardPage() {
   const { user, token, isAuthenticated } = useAuth();
   const { theme } = useTheme();
   const router = useRouter();
   const [stats, setStats] = useState({
-    totalTasks: 0,
-    completedTasks: 0,
-    pendingTasks: 0,
-    inProgressTasks: 0
+    total: 0,
+    completed: 0,
+    pending: 0,
+    inProgress: 0
   });
-  const [recentTasks, setRecentTasks] = useState<any[]>([]);
+  const [recentTasks, setRecentTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -33,48 +35,81 @@ export default function DashboardPage() {
 
     // Fetch dashboard data
     const fetchData = async () => {
-      if (!isAuthenticated || !token) {
+      if (!isAuthenticated || !user) {
         setIsLoading(false);
         return;
       }
 
       try {
-        // Fetch tasks from API
-        const tasks = await apiClient.getTasks(token);
+        // Try to get tasks from localStorage first using centralized storage service
+        let tasks = StorageService.getTasks(user.id);
 
-        // Calculate stats
-        const totalTasks = tasks.length;
-        const completedTasks = tasks.filter((task: any) => task.status === 'completed').length;
-        const pendingTasks = tasks.filter((task: any) => task.status === 'pending').length;
-        const inProgressTasks = tasks.filter((task: any) => task.status === 'in-progress').length;
+        // If no tasks in localStorage and we have a token, try to fetch from API
+        if (tasks.length === 0 && token) {
+          const apiTasks: any[] = await apiClient.getTasks(token);
+          tasks = Array.isArray(apiTasks) ? apiTasks : [];
+          // Save to localStorage for offline access using centralized storage service
+          StorageService.saveTasks(tasks, user.id);
+        }
 
+        // Calculate stats using centralized storage service
+        const taskStats = StorageService.getTaskStats(user.id);
         setStats({
-          totalTasks,
-          completedTasks,
-          pendingTasks,
-          inProgressTasks
+          total: taskStats.total,
+          completed: taskStats.completed,
+          pending: taskStats.pending,
+          inProgress: taskStats.inProgress
         });
 
-        // Set recent tasks (latest 4)
-        const sortedTasks = tasks.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        // Set recent tasks (latest 4) from localStorage
+        const sortedTasks = Array.isArray(tasks) ? tasks.sort((a: any, b: any) => new Date(b.created_at || b.createdAt).getTime() - new Date(a.created_at || a.createdAt).getTime()) : [];
         setRecentTasks(sortedTasks.slice(0, 4));
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
-        // Fallback to default values if API fails
-        setStats({
-          totalTasks: 0,
-          completedTasks: 0,
-          pendingTasks: 0,
-          inProgressTasks: 0
-        });
-        setRecentTasks([]);
+        // Fallback to values from centralized storage service
+        if (user) {
+          const fallbackStats = StorageService.getTaskStats(user.id);
+          setStats({
+            total: fallbackStats.total,
+            completed: fallbackStats.completed,
+            pending: fallbackStats.pending,
+            inProgress: fallbackStats.inProgress
+          });
+
+          const fallbackTasks = StorageService.getTasks(user.id);
+          const sortedFallbackTasks = Array.isArray(fallbackTasks) ? fallbackTasks.sort((a: any, b: any) => new Date(a.created_at || a.createdAt).getTime() - new Date(b.created_at || b.createdAt).getTime()) : [];
+          setRecentTasks(sortedFallbackTasks.slice(0, 4));
+        } else {
+          setStats({
+            total: 0,
+            completed: 0,
+            pending: 0,
+            inProgress: 0
+          });
+          setRecentTasks([]);
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchData();
-  }, [isAuthenticated, token, router]);
+
+    // Listen for storage events to update dashboard across tabs/windows
+    const handleStorageChange = () => {
+      if (user) {
+        const updatedStats = StorageService.getTaskStats(user.id);
+        setStats(updatedStats);
+
+        const allTasks = StorageService.getTasks(user.id);
+        const sortedTasks = allTasks.sort((a: any, b: any) => new Date(b.createdAt || b.created_at).getTime() - new Date(a.createdAt || a.created_at).getTime());
+        setRecentTasks(sortedTasks.slice(0, 4));
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [isAuthenticated, token, user, router]);
 
   // Always render the component structure to ensure consistent hooks
   if (isLoading) {
@@ -127,7 +162,7 @@ export default function DashboardPage() {
                   <dl>
                     <dt className={`text-sm font-medium ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>Total Tasks</dt>
                     <dd className="flex items-baseline">
-                      <div className={`text-3xl font-bold ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>{stats.totalTasks}</div>
+                      <div className={`text-3xl font-bold ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>{stats.total}</div>
                     </dd>
                   </dl>
                 </div>
@@ -152,7 +187,7 @@ export default function DashboardPage() {
                   <dl>
                     <dt className={`text-sm font-medium ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`}>Completed</dt>
                     <dd className="flex items-baseline">
-                      <div className={`text-3xl font-bold ${theme === 'dark' ? 'text-green-300' : 'text-green-700'}`}>{stats.completedTasks}</div>
+                      <div className={`text-3xl font-bold ${theme === 'dark' ? 'text-green-300' : 'text-green-700'}`}>{stats.completed}</div>
                     </dd>
                   </dl>
                 </div>
@@ -177,7 +212,7 @@ export default function DashboardPage() {
                   <dl>
                     <dt className={`text-sm font-medium ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'}`}>Pending</dt>
                     <dd className="flex items-baseline">
-                      <div className={`text-3xl font-bold ${theme === 'dark' ? 'text-yellow-300' : 'text-yellow-700'}`}>{stats.pendingTasks}</div>
+                      <div className={`text-3xl font-bold ${theme === 'dark' ? 'text-yellow-300' : 'text-yellow-700'}`}>{stats.pending}</div>
                     </dd>
                   </dl>
                 </div>
@@ -202,7 +237,7 @@ export default function DashboardPage() {
                   <dl>
                     <dt className={`text-sm font-medium ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`}>In Progress</dt>
                     <dd className="flex items-baseline">
-                      <div className={`text-3xl font-bold ${theme === 'dark' ? 'text-orange-300' : 'text-orange-700'}`}>{stats.inProgressTasks}</div>
+                      <div className={`text-3xl font-bold ${theme === 'dark' ? 'text-orange-300' : 'text-orange-700'}`}>{stats.inProgress}</div>
                     </dd>
                   </dl>
                 </div>
@@ -242,16 +277,29 @@ export default function DashboardPage() {
                   />
                   <h3 className={`text-xl font-bold ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>Recent Tasks</h3>
                 </div>
-                <Link
-                  href="/tasks"
-                  className={`inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white ${
-                    theme === 'dark'
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
-                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
-                  } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200`}
-                >
-                  View All Tasks
-                </Link>
+                {stats.total === 0 ? (
+                  <Link
+                    href="/tasks/new"
+                    className={`inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white ${
+                      theme === 'dark'
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
+                        : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
+                    } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200`}
+                  >
+                    Add New Task
+                  </Link>
+                ) : (
+                  <Link
+                    href="/tasks"
+                    className={`inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white ${
+                      theme === 'dark'
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
+                        : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
+                    } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200`}
+                  >
+                    View All Tasks
+                  </Link>
+                )}
               </div>
             </div>
             <ul className={`divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}>
@@ -284,7 +332,7 @@ export default function DashboardPage() {
                             <svg className={`flex-shrink-0 mr-2 h-5 w-5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                               <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
                             </svg>
-                            {new Date(task.dueDate).toLocaleDateString()}
+                            {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date'}
                           </div>
                           <div className={`mt-2 flex items-center text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} sm:mt-0`}>
                             <span className={`inline-block w-3 h-3 rounded-full mr-2 ${
@@ -294,7 +342,7 @@ export default function DashboardPage() {
                                 ? theme === 'dark' ? 'bg-yellow-400' : 'bg-yellow-500' :
                               theme === 'dark' ? 'bg-gray-400' : 'bg-gray-500'
                             }`}></span>
-                            {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)} priority
+                            {(task.priority || 'medium').charAt(0).toUpperCase() + (task.priority || 'medium').slice(1)} priority
                           </div>
                         </div>
                       </div>

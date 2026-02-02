@@ -14,13 +14,19 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is authenticated by looking for authToken in localStorage
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      // User is authenticated, redirect to dashboard
-      router.push('/dashboard');
+    // Only run on client side where localStorage is available
+    if (typeof window !== 'undefined') {
+      // Check if user is authenticated by looking for authToken in sessionStorage
+      const token = sessionStorage.getItem('authToken');
+      if (token) {
+        // User is authenticated, redirect to dashboard
+        router.push('/dashboard');
+      } else {
+        // User is not authenticated, show landing page
+        setIsLoading(false);
+      }
     } else {
-      // User is not authenticated, show landing page
+      // If window is not defined, we're on server, so don't redirect
       setIsLoading(false);
     }
   }, [router]);

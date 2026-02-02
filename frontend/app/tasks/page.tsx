@@ -9,13 +9,15 @@ import SkeletonLoader from '../../components/SkeletonLoader';
 import { apiClient } from '../../lib/api-client';
 import { motion } from 'framer-motion';
 import { useTheme } from '../../lib/theme-context';
+import StorageService from '../../lib/storage-service';
+import { Task } from '../../types/task';
 
 export default function TasksPage() {
   const { user, token, isAuthenticated } = useAuth();
   const { theme } = useTheme();
   const router = useRouter();
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [filteredTasks, setFilteredTasks] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingAll, setDeletingAll] = useState(false);
   const [error, setError] = useState('');
@@ -35,30 +37,52 @@ export default function TasksPage() {
     }
 
     const fetchTasks = async () => {
-      if (!isAuthenticated || !token) {
+      if (!isAuthenticated || !user) {
         setLoading(false);
         return;
       }
 
       try {
-        const tasksData = await apiClient.getTasks(token);
+        // Try to get tasks from localStorage first
+        let tasksData = StorageService.getTasks(user.id);
+
+        // If no tasks in localStorage, try to fetch from API
+        if (tasksData.length === 0 && token) {
+          tasksData = await apiClient.getTasks(token);
+          // Save to localStorage for offline access
+          StorageService.saveTasks(tasksData, user.id);
+        }
+
         setTasks(tasksData || []);
         setFilteredTasks(tasksData || []);
       } catch (error) {
         console.error('Failed to fetch tasks:', error);
-        // Fallback to empty array or show error message
-        setTasks([]);
-        setFilteredTasks([]);
+        // Fallback to localStorage tasks
+        const fallbackTasks = user ? StorageService.getTasks(user.id) : [];
+        setTasks(fallbackTasks);
+        setFilteredTasks(fallbackTasks);
       } finally {
         setLoading(false);
       }
     };
 
     fetchTasks();
-  }, [isAuthenticated, token, router]);
+
+    // Listen for storage events to update tasks across tabs/windows
+    const handleStorageChange = () => {
+      if (user) {
+        const updatedTasks = StorageService.getTasks(user.id);
+        setTasks(updatedTasks);
+        setFilteredTasks(updatedTasks);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [isAuthenticated, token, user, router]);
 
   // Always render the component structure to ensure consistent hooks
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -81,7 +105,7 @@ export default function TasksPage() {
       return;
     }
 
-    if (!isAuthenticated || !token) {
+    if (!isAuthenticated || !user) {
       setError('You must be logged in to delete tasks');
       return;
     }
@@ -90,8 +114,13 @@ export default function TasksPage() {
     setError('');
 
     try {
-      // Delete all tasks for this user via API/localStorage
-      await apiClient.deleteAllTasks(token);
+      // Delete all tasks for this user via API if online
+      if (token) {
+        await apiClient.deleteAllTasks(token);
+      }
+
+      // Delete all tasks from localStorage
+      StorageService.deleteAllTasks(user.id);
 
       // Update the tasks state to be empty
       setTasks([]);
@@ -430,7 +459,7 @@ export default function TasksPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: 0.1 * index }}
                   >
-                    <Link href={`/tasks/${task.id || task._id}`} className={`block ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-blue-50'} transition-colors duration-200`}>
+                    <Link href={`/tasks/${task.id || task._id || ''}`} className={`block ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-blue-50'} transition-colors duration-200`}>
                       <div className={`px-6 py-6 sm:px-8 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                         <div className="flex items-center justify-between">
                           <p className={`text-base font-semibold ${theme === 'dark' ? 'text-blue-400' : 'text-blue-700'} truncate`}>{task.title}</p>

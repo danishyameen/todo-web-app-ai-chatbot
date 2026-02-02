@@ -72,6 +72,21 @@ app.include_router(recurring_tasks.router, prefix="/api", tags=["recurring-tasks
 async def root():
     return {"message": "Todo Web Application API"}
 
+@app.get("/api")
+async def api_root():
+    """API root endpoint with information about available endpoints."""
+    return {
+        "message": "Todo Web Application API - Available Endpoints",
+        "endpoints": {
+            "tasks": "/api/{user_id}/tasks",
+            "specific_task": "/api/{user_id}/tasks/{task_id}",
+            "categories": "/api/{user_id}/categories",
+            "chat": "/api/{user_id}/chat",
+            "health": "/health"
+        },
+        "documentation": "/docs"
+    }
+
 @app.get("/health")
 async def health_check():
     """Basic health check endpoint."""

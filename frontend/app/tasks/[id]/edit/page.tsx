@@ -79,8 +79,8 @@ export default function EditTaskPage() {
       // Update task via API/localStorage
       const updatedTask = await apiClient.updateTask(id as string, formData, token);
 
-      // Redirect to the task detail page after update
-      router.push(`/tasks/${id}`);
+      // Redirect to the tasks list page after update
+      router.push('/tasks');
       router.refresh(); // Refresh to show the updated task
     } catch (err) {
       console.error('Error updating task:', err);

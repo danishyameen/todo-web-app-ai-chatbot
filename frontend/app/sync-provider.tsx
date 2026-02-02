@@ -23,6 +23,11 @@ export const SyncProvider = ({ children }: { children: ReactNode }) => {
 
   // Monitor online/offline status
   useEffect(() => {
+    // Only run on client side where window and navigator are available
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+      return;
+    }
+
     const handleOnline = () => {
       setIsOnline(true);
       console.log('Device is now online. Initiating sync...');
@@ -101,7 +106,10 @@ export const SyncProvider = ({ children }: { children: ReactNode }) => {
   }, [isAuthenticated, user, token, isOnline]);
 
   const getOfflineDataStats = () => {
-    return OfflineStorageService.getDataStats();
+    if (!user) {
+      return { tasksCount: 0, conversationsCount: 0, totalSize: 0 };
+    }
+    return OfflineStorageService.getDataStats(user.id);
   };
 
   const value: SyncContextType = {

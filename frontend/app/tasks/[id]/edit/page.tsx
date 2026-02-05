@@ -26,12 +26,6 @@ export default function EditTaskPage() {
 
   useEffect(() => {
     const fetchTask = async () => {
-      if (!isAuthenticated || !token) {
-        setError('You must be logged in to edit this task');
-        setLoading(false);
-        return;
-      }
-
       try {
         // Fetch the specific task from the backend/localStorage
         const taskData = await apiClient.getTaskById(id as string, token);
@@ -56,7 +50,19 @@ export default function EditTaskPage() {
       }
     };
 
-    fetchTask();
+    // Only fetch if we have the necessary data
+    if (id && isAuthenticated && token) {
+      fetchTask();
+    } else if (id && !isAuthenticated) {
+      // Not authenticated
+      setError('You must be logged in to edit this task');
+      setLoading(false);
+    } else if (id && isAuthenticated && !token) {
+      // Authenticated but no token - this is an error state
+      setError('You must be logged in to edit this task');
+      setLoading(false);
+    }
+    // Don't fetch if id is not yet available (still loading)
   }, [id, isAuthenticated, token]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -79,9 +85,8 @@ export default function EditTaskPage() {
       // Update task via API/localStorage
       const updatedTask = await apiClient.updateTask(id as string, formData, token);
 
-      // Redirect to the tasks list page after update
-      router.push('/tasks');
-      router.refresh(); // Refresh to show the updated task
+      // Navigate to dashboard after successful update
+      router.push('/dashboard');
     } catch (err) {
       console.error('Error updating task:', err);
       setError('An error occurred while updating the task. Please try again.');
@@ -103,16 +108,16 @@ export default function EditTaskPage() {
       // Delete task via API/localStorage
       await apiClient.deleteTask(id as string, token);
 
-      // Redirect to the tasks list after deletion
-      router.push('/tasks');
-      router.refresh(); // Refresh to show the updated task list
+      // Navigate to dashboard after successful deletion
+      router.push('/dashboard');
     } catch (err) {
       console.error('Error deleting task:', err);
       setError('An error occurred while deleting the task. Please try again.');
     }
   };
 
-  if (!isAuthenticated) {
+  // Check authentication state - only show error if we know for sure user is not authenticated
+  if (isAuthenticated === false && loading === false) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -137,7 +142,7 @@ export default function EditTaskPage() {
     );
   }
 
-  if (error && !task) {
+  if (error && !task && !isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="bg-white p-6 rounded-lg shadow-md">
@@ -293,14 +298,23 @@ export default function EditTaskPage() {
                   Category
                 </label>
                 <div className="mt-1">
-                  <input
-                    type="text"
-                    name="category"
+                  <select
                     id="category"
+                    name="category"
                     value={formData.category}
                     onChange={handleChange}
                     className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
-                  />
+                  >
+                    <option value="">Select a category</option>
+                    <option value="Personal">Personal</option>
+                    <option value="Work">Work</option>
+                    <option value="Shopping">Shopping</option>
+                    <option value="Health">Health</option>
+                    <option value="Education">Education</option>
+                    <option value="Finance">Finance</option>
+                    <option value="Entertainment">Entertainment</option>
+                    <option value="Other">Other</option>
+                  </select>
                 </div>
               </div>
             </div>

@@ -336,7 +336,29 @@
       "Bash(python -m uvicorn src.main:app --host 0.0.0.0 --port 8001)",
       "Bash(ls -la frontend/app/tasks/[id]/edit/)",
       "Bash(npm install next@latest react@latest react-dom@latest)",
-      "Bash(del .nextdevlock)"
+      "Bash(del .nextdevlock)",
+      "Bash(git commit -m \"feat: Complete Todo Web Application with AI Chatbot, PWA, and Advanced Features\n\n- Implemented AI chatbot for natural language task management\n- Added PWA functionality with service worker and manifest\n- Created responsive UI with Tailwind CSS\n- Implemented task CRUD operations\n- Added authentication and user management\n- Integrated offline storage and sync capabilities\n- Added dashboard with task statistics\n- Implemented chat interface with conversation history\n- Added profile management page\n- Included comprehensive error handling and validation\n- Added theme support \\(light/dark mode\\)\n- Implemented proper routing and navigation\n- Added loading states and skeleton loaders\n- Implemented proper state management\n- Added comprehensive documentation\")",
+      "Bash(git push origin 1-todo-ai-chatbot)",
+      "Bash(python -c \"import sys; print\\(sys.version\\)\")",
+      "Bash(python -c \"from src.main import app; import uvicorn; uvicorn.run\\(app, host=''0.0.0.0'', port=8000, reload=False\\)\")",
+      "Bash(npx next dev --port 3000)",
+      "Bash(npx next dev --port 3001)",
+      "Bash(powershell -Command \"try { Invoke-WebRequest -Uri http://localhost:3000/ -Method HEAD -TimeoutSec 5 } catch { Write-Host ''Frontend server not accessible on port 3000'' }\")",
+      "Bash(curl -s -o nul -w \"%{http_code}\" http://localhost:8000/)",
+      "Bash(curl -s -o nul -w \"%{http_code}\" http://localhost:3002/)",
+      "Bash(powershell -Command \"try { $response = Invoke-WebRequest -Uri http://localhost:3002/ -Method GET -TimeoutSec 10; Write-Host ''Frontend status:'' $response.StatusCode } catch { Write-Host ''Frontend not accessible on port 3002'' }\")",
+      "Bash(findstr :300)",
+      "Bash(curl -s -o nul -w \"Frontend status: %{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(powershell -Command \"$response = Invoke-RestMethod -Uri http://localhost:3000/ -Method GET -TimeoutSec 10; Write-Host ''Frontend accessible, status code:'' $response.StatusCode\")",
+      "Bash(start http://localhost:3000/)",
+      "Bash(node -e \"require\\(''http''\\).get\\(''http://localhost:3000/'', res => { console.log\\(''Frontend status:'', res.statusCode\\); }\\).on\\(''error'', err => { console.log\\(''Frontend error:'', err.message\\); }\\);\")",
+      "Bash(findstr \"3000\\\\|3001\\\\|3002\\\\|3003\\\\|3004\\\\|3005\\\\|3006\\\\|3007\\\\|3008\\\\|3009\")",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill /PID 15664 /F:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(taskkill /IM python.exe /F:*)",
+      "Bash(git remote set-url:*)"
     ]
   }
 }

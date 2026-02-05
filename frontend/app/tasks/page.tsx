@@ -27,112 +27,6 @@ export default function TasksPage() {
     search: ''
   });
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      // Add a small delay to ensure all state updates are processed before redirect
-      const timer = setTimeout(() => {
-        router.push('/');
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-
-    const fetchTasks = async () => {
-      if (!isAuthenticated || !user) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        // Try to get tasks from localStorage first
-        let tasksData = StorageService.getTasks(user.id);
-
-        // If no tasks in localStorage, try to fetch from API
-        if (tasksData.length === 0 && token) {
-          tasksData = await apiClient.getTasks(token);
-          // Save to localStorage for offline access
-          StorageService.saveTasks(tasksData, user.id);
-        }
-
-        setTasks(tasksData || []);
-        setFilteredTasks(tasksData || []);
-      } catch (error) {
-        console.error('Failed to fetch tasks:', error);
-        // Fallback to localStorage tasks
-        const fallbackTasks = user ? StorageService.getTasks(user.id) : [];
-        setTasks(fallbackTasks);
-        setFilteredTasks(fallbackTasks);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTasks();
-
-    // Listen for storage events to update tasks across tabs/windows
-    const handleStorageChange = () => {
-      if (user) {
-        const updatedTasks = StorageService.getTasks(user.id);
-        setTasks(updatedTasks);
-        setFilteredTasks(updatedTasks);
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, [isAuthenticated, token, user, router]);
-
-  // Always render the component structure to ensure consistent hooks
-  if (!isAuthenticated || !user) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Access Denied</h2>
-          <p className="text-gray-600 mb-6">Please log in to view your tasks.</p>
-          <Link
-            href="/"
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            Go to Home
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  const handleDeleteAll = async () => {
-    if (!window.confirm('Are you sure you want to delete all tasks? This cannot be undone.')) {
-      return;
-    }
-
-    if (!isAuthenticated || !user) {
-      setError('You must be logged in to delete tasks');
-      return;
-    }
-
-    setDeletingAll(true);
-    setError('');
-
-    try {
-      // Delete all tasks for this user via API if online
-      if (token) {
-        await apiClient.deleteAllTasks(token);
-      }
-
-      // Delete all tasks from localStorage
-      StorageService.deleteAllTasks(user.id);
-
-      // Update the tasks state to be empty
-      setTasks([]);
-      setFilteredTasks([]);
-    } catch (err) {
-      console.error('Error deleting all tasks:', err);
-      setError('An error occurred while deleting all tasks. Please try again.');
-    } finally {
-      setDeletingAll(false);
-    }
-  };
-
   // Apply filters whenever filters change
   useEffect(() => {
     let result = [...tasks];
@@ -161,12 +55,131 @@ export default function TasksPage() {
     setFilteredTasks(result);
   }, [filters, tasks]);
 
+  // Separate effect for handling redirects
+  useEffect(() => {
+    if (!isAuthenticated) {
+      const timer = setTimeout(() => {
+        router.push('/');
+      }, 100);
+
+      return () => {
+        clearTimeout(timer);
+      };
+    }
+  }, [isAuthenticated, router]);
+
+  // Main effect for handling tasks data
+  useEffect(() => {
+    // Only proceed if authenticated and user exists
+    if (isAuthenticated && user && token) {
+      // Listen for storage events to update tasks across tabs/windows
+      const handleStorageChange = () => {
+        const updatedTasks = StorageService.getTasks(user.id);
+        setTasks(updatedTasks);
+        setFilteredTasks(updatedTasks);
+      };
+
+      window.addEventListener('storage', handleStorageChange);
+
+      const fetchTasks = async () => {
+        try {
+          // Show immediate cached tasks if available to prevent loading flash
+          const cachedTasks = StorageService.getTasks(user.id);
+          if (cachedTasks.length > 0) {
+            setTasks(cachedTasks);
+            setFilteredTasks(cachedTasks);
+          }
+
+          // Fetch fresh tasks from API in background
+          const freshTasks = await apiClient.getTasks(token);
+          // Update both state and cache
+          setTasks(freshTasks);
+          setFilteredTasks(freshTasks);
+          StorageService.saveTasks(freshTasks, user.id);
+        } catch (error) {
+          console.error('Failed to fetch tasks:', error);
+          // Use cached tasks if API fails
+          const fallbackTasks = user ? StorageService.getTasks(user.id) : [];
+          setTasks(fallbackTasks);
+          setFilteredTasks(fallbackTasks);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchTasks();
+
+      // Always return the same cleanup function regardless of conditions
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+      };
+    } else {
+      // If not authenticated or no user/token, just set loading to false
+      setLoading(false);
+    }
+  }, [isAuthenticated, token, user]);
+
+  const handleDeleteAll = async () => {
+    if (!window.confirm('Are you sure you want to delete all tasks? This cannot be undone.')) {
+      return;
+    }
+
+    if (!isAuthenticated || !user) {
+      setError('You must be logged in to delete tasks');
+      return;
+    }
+
+    setDeletingAll(true);
+    setError('');
+
+    try {
+      // Delete all tasks for this user via API if online
+      if (token) {
+        await apiClient.deleteAllTasks(token);
+      }
+
+      // Delete all tasks from localStorage
+      StorageService.deleteAllTasks(user.id);
+
+      // Update the tasks state to be empty
+      setTasks([]);
+      setFilteredTasks([]);
+
+      // Navigate to dashboard after successful deletion
+      router.push('/dashboard');
+    } catch (err) {
+      console.error('Error deleting all tasks:', err);
+      setError('An error occurred while deleting all tasks. Please try again.');
+    } finally {
+      setDeletingAll(false);
+    }
+  };
+
   const handleFilterChange = (filterType: string, value: string) => {
     setFilters(prev => ({
       ...prev,
       [filterType]: value
     }));
   };
+
+  // Conditional rendering at the end to ensure all hooks are always called
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Access Denied</h2>
+          <p className="text-gray-600 mb-6">Please log in to view your tasks.</p>
+          <Link
+            href="/"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            Go to Home
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -483,7 +496,7 @@ export default function TasksPage() {
                             </div>
                           </div>
                           <div className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                            {task.category || 'Uncategorized'}
+                            {task.category || 'Uncategorized'} • {task.user_name || (user && user.name ? user.name.split(' ')[0] : 'User')}
                           </div>
                         </div>
                         {task.description && (

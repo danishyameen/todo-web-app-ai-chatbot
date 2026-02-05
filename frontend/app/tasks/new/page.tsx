@@ -51,9 +51,8 @@ export default function CreateTaskPage() {
       // Create task via API
       const taskData = await apiClient.createTask(formData, token);
 
-      // Redirect to the tasks list after creation
-      router.push('/tasks');
-      router.refresh(); // Refresh to show the new task
+      // Navigate to dashboard after successful creation
+      router.push('/dashboard');
     } catch (err) {
       console.error('Error creating task:', err);
       setError('An error occurred while creating the task. Please try again.');
@@ -274,20 +273,29 @@ export default function CreateTaskPage() {
                     Category
                   </label>
                   <div className="mt-1">
-                    <input
-                      type="text"
-                      name="category"
+                    <select
                       id="category"
+                      name="category"
                       value={formData.category}
                       onChange={handleChange}
                       className={`appearance-none relative block w-full px-4 py-3 border ${
                         theme === 'dark'
-                          ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400'
-                          : 'border-gray-300 placeholder-gray-500 text-gray-900'
+                          ? 'border-gray-600 bg-gray-700 text-white'
+                          : 'border-gray-300 text-gray-900'
                       } rounded-lg focus:outline-none focus:ring-2 ${
                         theme === 'dark' ? 'focus:ring-blue-500 focus:border-blue-500' : 'focus:ring-blue-500 focus:border-blue-500'
                       } sm:text-sm transition duration-200`}
-                    />
+                    >
+                      <option value="">Select a category</option>
+                      <option value="Personal">Personal</option>
+                      <option value="Work">Work</option>
+                      <option value="Shopping">Shopping</option>
+                      <option value="Health">Health</option>
+                      <option value="Education">Education</option>
+                      <option value="Finance">Finance</option>
+                      <option value="Entertainment">Entertainment</option>
+                      <option value="Other">Other</option>
+                    </select>
                   </div>
                 </div>
               </motion.div>

@@ -13,6 +13,19 @@ class SyncService {
       return false;
     }
 
+    // Validate token before starting sync
+    if (!token || typeof token !== 'string') {
+      console.warn('No valid token provided for syncTasks, skipping sync');
+      return false;
+    }
+
+    // Check if token is a valid JWT format (has 3 parts separated by dots)
+    const tokenParts = token.split('.');
+    if (tokenParts.length !== 3) {
+      console.warn('Invalid token format for syncTasks, skipping sync');
+      return false;
+    }
+
     this.isSyncing = true;
     let success = false;
 
@@ -77,6 +90,19 @@ class SyncService {
   static async syncConversations(userId: string, token: string): Promise<boolean> {
     if (this.isSyncing) {
       console.log('Sync already in progress, skipping...');
+      return false;
+    }
+
+    // Validate token before starting sync
+    if (!token || typeof token !== 'string') {
+      console.warn('No valid token provided for syncConversations, skipping sync');
+      return false;
+    }
+
+    // Check if token is a valid JWT format (has 3 parts separated by dots)
+    const tokenParts = token.split('.');
+    if (tokenParts.length !== 3) {
+      console.warn('Invalid token format for syncConversations, skipping sync');
       return false;
     }
 
@@ -286,6 +312,24 @@ class SyncService {
 
   private static async createTaskOnServer(task: Task, userId: string, token: string): Promise<void> {
     try {
+      // Validate inputs before making API call
+      if (!token || typeof token !== 'string') {
+        console.warn('No valid token provided for creating task on server');
+        throw new Error('Invalid token provided');
+      }
+
+      // Check if token is a valid JWT format (has 3 parts separated by dots)
+      const tokenParts = token.split('.');
+      if (tokenParts.length !== 3) {
+        console.warn('Invalid token format for creating task on server');
+        throw new Error('Invalid token format');
+      }
+
+      if (!userId || !task) {
+        console.warn('Missing userId or task data for creating task on server');
+        throw new Error('Missing required data for creating task');
+      }
+
       // Transform task to match backend API expectations
       const taskData = {
         title: task.title,
@@ -307,6 +351,10 @@ class SyncService {
       });
 
       if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          console.warn('Unauthorized access - token may have expired');
+          throw new Error('Unauthorized access - token may have expired');
+        }
         const errorText = await response.text();
         throw new Error(`Failed to create task on server: ${response.status} - ${errorText}`);
       }
@@ -331,6 +379,24 @@ class SyncService {
 
   private static async updateTaskOnServer(task: Task, userId: string, token: string): Promise<void> {
     try {
+      // Validate inputs before making API call
+      if (!token || typeof token !== 'string') {
+        console.warn('No valid token provided for updating task on server');
+        throw new Error('Invalid token provided');
+      }
+
+      // Check if token is a valid JWT format (has 3 parts separated by dots)
+      const tokenParts = token.split('.');
+      if (tokenParts.length !== 3) {
+        console.warn('Invalid token format for updating task on server');
+        throw new Error('Invalid token format');
+      }
+
+      if (!userId || !task || !task.id) {
+        console.warn('Missing userId, task data, or task id for updating task on server');
+        throw new Error('Missing required data for updating task');
+      }
+
       // Transform task to match backend API expectations
       const taskUpdateData = {
         title: task.title,
@@ -352,6 +418,10 @@ class SyncService {
       });
 
       if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          console.warn('Unauthorized access - token may have expired');
+          throw new Error('Unauthorized access - token may have expired');
+        }
         const errorText = await response.text();
         throw new Error(`Failed to update task on server: ${response.status} - ${errorText}`);
       }
@@ -371,6 +441,24 @@ class SyncService {
 
   private static async createConversationOnServer(conversation: any, userId: string, token: string): Promise<void> {
     try {
+      // Validate inputs before making API call
+      if (!token || typeof token !== 'string') {
+        console.warn('No valid token provided for creating conversation on server');
+        throw new Error('Invalid token provided');
+      }
+
+      // Check if token is a valid JWT format (has 3 parts separated by dots)
+      const tokenParts = token.split('.');
+      if (tokenParts.length !== 3) {
+        console.warn('Invalid token format for creating conversation on server');
+        throw new Error('Invalid token format');
+      }
+
+      if (!userId || !conversation) {
+        console.warn('Missing userId or conversation data for creating conversation on server');
+        throw new Error('Missing required data for creating conversation');
+      }
+
       // Transform conversation to match backend API expectations
       const conversationData = {
         title: conversation.title || 'New Conversation',
@@ -387,6 +475,10 @@ class SyncService {
       });
 
       if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          console.warn('Unauthorized access - token may have expired');
+          throw new Error('Unauthorized access - token may have expired');
+        }
         const errorText = await response.text();
         throw new Error(`Failed to create conversation on server: ${response.status} - ${errorText}`);
       }
@@ -411,6 +503,24 @@ class SyncService {
 
   private static async updateConversationOnServer(conversation: any, userId: string, token: string): Promise<void> {
     try {
+      // Validate inputs before making API call
+      if (!token || typeof token !== 'string') {
+        console.warn('No valid token provided for updating conversation on server');
+        throw new Error('Invalid token provided');
+      }
+
+      // Check if token is a valid JWT format (has 3 parts separated by dots)
+      const tokenParts = token.split('.');
+      if (tokenParts.length !== 3) {
+        console.warn('Invalid token format for updating conversation on server');
+        throw new Error('Invalid token format');
+      }
+
+      if (!userId || !conversation || !conversation.id) {
+        console.warn('Missing userId, conversation data, or conversation id for updating conversation on server');
+        throw new Error('Missing required data for updating conversation');
+      }
+
       // Transform conversation to match backend API expectations
       const conversationUpdateData = {
         title: conversation.title || 'New Conversation'
@@ -426,6 +536,10 @@ class SyncService {
       });
 
       if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          console.warn('Unauthorized access - token may have expired');
+          throw new Error('Unauthorized access - token may have expired');
+        }
         const errorText = await response.text();
         throw new Error(`Failed to update conversation on server: ${response.status} - ${errorText}`);
       }

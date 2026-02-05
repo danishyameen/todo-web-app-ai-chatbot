@@ -137,9 +137,8 @@ export default function TaskDetailPage() {
       // Delete task via API/localStorage
       await apiClient.deleteTask(id as string, token);
 
-      // Redirect to the tasks list after deletion
-      router.push('/tasks');
-      router.refresh(); // Refresh to show the updated task list
+      // Navigate to dashboard immediately after successful deletion
+      router.push('/dashboard');
     } catch (err) {
       console.error('Error deleting task:', err);
       setError('An error occurred while deleting the task. Please try again.');
@@ -230,16 +229,16 @@ export default function TaskDetailPage() {
               </div>
 
               <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt className="text-sm font-medium text-gray-500">Created</dt>
+                <dt className="text-sm font-medium text-gray-500">Created By</dt>
                 <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                  {task.createdAt ? new Date(task.createdAt).toLocaleString() : 'Unknown'}
+                  {task.user_name || (user && user.name ? user.name : 'User')} • {task.createdAt ? new Date(task.createdAt).toLocaleString() : (task.created_at ? new Date(task.created_at).toLocaleString() : 'Unknown')}
                 </dd>
               </div>
 
               <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                 <dt className="text-sm font-medium text-gray-500">Last Updated</dt>
                 <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                  {task.updatedAt ? new Date(task.updatedAt).toLocaleString() : 'Unknown'}
+                  {task.updatedAt ? new Date(task.updatedAt).toLocaleString() : (task.updated_at ? new Date(task.updated_at).toLocaleString() : 'Unknown')}
                 </dd>
               </div>
             </dl>

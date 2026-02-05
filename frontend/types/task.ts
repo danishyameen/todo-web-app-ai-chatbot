@@ -9,6 +9,7 @@ export interface Task {
   priority: 'low' | 'medium' | 'high';
   due_date?: string | null;
   category?: string;
+  user_name?: string; // Added for displaying user name with tasks
   created_at: string;
   updated_at: string;
   completed_at?: string | null;
@@ -19,6 +20,7 @@ export interface Task {
   createdAt?: string;
   updatedAt?: string;
   completedAt?: string | null;
+  userName?: string;
   userId?: string;
   categoryId?: string | null;
   // Legacy field for compatibility

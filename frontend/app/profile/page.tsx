@@ -223,12 +223,17 @@ export default function ProfilePage() {
     try {
       // Update user profile using the auth context method
       const updatedProfile = {
-        ...profile,
-        id: user?.id
+        name: profile.name,
+        email: profile.email,
+        phone: profile.phone,
+        address: profile.address,
+        bio: profile.bio,
+        avatar: profile.avatar,
+        review: profile.review
       };
 
-      // Use the new updateUserProfile method from the auth context
-      updateUserProfile(updatedProfile);
+      // Use the updateUserProfile method from the auth context
+      await updateUserProfile(updatedProfile);
 
       // Update the auth context
       setSuccess('Profile updated successfully!');

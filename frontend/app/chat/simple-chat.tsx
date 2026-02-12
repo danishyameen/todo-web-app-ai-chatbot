@@ -8,7 +8,6 @@ import { chatService } from '../../lib/chat-service';
 import Header from '../../components/Header';
 import { useAuth } from '../../lib/auth-context';
 import UserDataService from '../../src/services/UserDataService';
-import { motion, AnimatePresence } from 'framer-motion';
 
 // Types for our chat system
 type Message = {

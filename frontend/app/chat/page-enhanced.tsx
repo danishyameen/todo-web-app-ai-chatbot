@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { chatService } from '../../lib/chat-service';
+import { useAuth } from '../../lib/auth-context';
 
 // Types for our chat system
 type Message = {
@@ -23,10 +24,12 @@ type Conversation = {
 };
 
 export default function ChatPage() {
+  const { user, token, isAuthenticated } = useAuth();
   const searchParams = useSearchParams();
   const userIdFromUrl = searchParams.get('userId');
 
-  const [userId] = useState<string>(userIdFromUrl || localStorage.getItem('userId') || '');
+  // Use the authenticated user's ID if available, otherwise fall back to URL or localStorage
+  const [userId] = useState<string>(userIdFromUrl || user?.id || localStorage.getItem('userId') || '');
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -63,6 +66,21 @@ export default function ChatPage() {
 
     if (!inputValue.trim() || isLoading) return;
 
+    // Check authentication first
+    if (!isAuthenticated || !user || !token) {
+      const authErrorMessage: Message = {
+        id: uuidv4(),
+        role: 'assistant',
+        content: 'User not authenticated. Please log in to use the AI chatbot. You need to be authenticated to manage your tasks.',
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, authErrorMessage]);
+      return;
+    }
+
+    // Use the authenticated user's ID
+    const currentUserId = user.id;
+
     // Add user message to the conversation
     const userMessage: Message = {
       id: uuidv4(),
@@ -76,9 +94,9 @@ export default function ChatPage() {
     setIsLoading(true);
 
     try {
-      // Call the actual chat service
+      // Call the actual chat service with the authenticated user's ID or anonymous ID
       const response = await chatService.sendMessage({
-        userId,
+        userId: currentUserId, // Use the authenticated user's ID or anonymous ID
         message: inputValue.trim(),
         conversationId: activeConversationId || undefined
       });

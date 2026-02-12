@@ -9,7 +9,7 @@ import SkeletonLoader from '../../components/SkeletonLoader';
 import { apiClient } from '../../lib/api-client';
 import { motion } from 'framer-motion';
 import { useTheme } from '../../lib/theme-context';
-import StorageService from '../../lib/storage-service';
+import UserDataService from '../../src/services/UserDataService';
 import { Task } from '../../types/task';
 
 export default function TasksPage() {
@@ -74,32 +74,54 @@ export default function TasksPage() {
     if (isAuthenticated && user && token) {
       // Listen for storage events to update tasks across tabs/windows
       const handleStorageChange = () => {
-        const updatedTasks = StorageService.getTasks(user.id);
+        const updatedTasks = UserDataService.getTasks(user.id);
+        setTasks(updatedTasks);
+        setFilteredTasks(updatedTasks);
+      };
+
+      // Listen for custom events dispatched by other parts of the app (like AI chatbot)
+      const handleCustomUpdate = () => {
+        const updatedTasks = UserDataService.getTasks(user.id);
         setTasks(updatedTasks);
         setFilteredTasks(updatedTasks);
       };
 
       window.addEventListener('storage', handleStorageChange);
+      window.addEventListener('userTaskUpdate', handleCustomUpdate);
 
       const fetchTasks = async () => {
         try {
           // Show immediate cached tasks if available to prevent loading flash
-          const cachedTasks = StorageService.getTasks(user.id);
+          const cachedTasks = UserDataService.getTasks(user.id);
+          console.log(`Tasks page: Found ${cachedTasks.length} tasks in local storage for user ${user.id}`);
           if (cachedTasks.length > 0) {
             setTasks(cachedTasks);
             setFilteredTasks(cachedTasks);
           }
 
           // Fetch fresh tasks from API in background
-          const freshTasks = await apiClient.getTasks(token);
-          // Update both state and cache
-          setTasks(freshTasks);
-          setFilteredTasks(freshTasks);
-          StorageService.saveTasks(freshTasks, user.id);
+          const freshTasks = await apiClient.getTasks(token, user?.id);
+          console.log(`Tasks page: Fetched ${freshTasks.length} tasks from API for user ${user.id}`);
+
+          // Only update state and local storage if we got tasks from the API
+          // If API returns empty array but we have cached tasks, keep the cached ones
+          if (freshTasks.length > 0 || cachedTasks.length === 0) {
+            // Update both state and cache
+            setTasks(freshTasks);
+            setFilteredTasks(freshTasks);
+
+            // Save to user-specific storage for offline access
+            UserDataService.saveTasks(freshTasks, user.id);
+          } else {
+            // If API returned empty but we had cached tasks, keep the cached tasks
+            console.log(`Tasks page: Keeping ${cachedTasks.length} cached tasks since API returned empty`);
+            setTasks(cachedTasks);
+            setFilteredTasks(cachedTasks);
+          }
         } catch (error) {
           console.error('Failed to fetch tasks:', error);
           // Use cached tasks if API fails
-          const fallbackTasks = user ? StorageService.getTasks(user.id) : [];
+          const fallbackTasks = user ? UserDataService.getTasks(user.id) : [];
           setTasks(fallbackTasks);
           setFilteredTasks(fallbackTasks);
         } finally {
@@ -112,6 +134,7 @@ export default function TasksPage() {
       // Always return the same cleanup function regardless of conditions
       return () => {
         window.removeEventListener('storage', handleStorageChange);
+        window.removeEventListener('userTaskUpdate', handleCustomUpdate);
       };
     } else {
       // If not authenticated or no user/token, just set loading to false
@@ -135,18 +158,20 @@ export default function TasksPage() {
     try {
       // Delete all tasks for this user via API if online
       if (token) {
-        await apiClient.deleteAllTasks(token);
+        await apiClient.deleteAllTasks(token, user?.id, true); // Skip local update since we're handling it manually
       }
 
-      // Delete all tasks from localStorage
-      StorageService.deleteAllTasks(user.id);
+      // Delete all tasks from user-specific storage
+      UserDataService.deleteAllTasks(user.id);
 
       // Update the tasks state to be empty
       setTasks([]);
       setFilteredTasks([]);
 
-      // Navigate to dashboard after successful deletion
-      router.push('/dashboard');
+      // Add a small delay to ensure data is saved before navigation
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 100);
     } catch (err) {
       console.error('Error deleting all tasks:', err);
       setError('An error occurred while deleting all tasks. Please try again.');
@@ -483,12 +508,18 @@ export default function TasksPage() {
                           </div>
                         </div>
                         <div className="mt-3 flex justify-between">
-                          <div className="sm:flex">
+                          <div className="sm:flex flex-wrap">
                             <div className={`mr-6 flex items-center text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
                               <svg className={`flex-shrink-0 mr-2 h-5 w-5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                                 <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
                               </svg>
                               {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date'}
+                            </div>
+                            <div className={`mr-6 flex items-center text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                              <svg className={`flex-shrink-0 mr-2 h-5 w-5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                              </svg>
+                              Created: {task.createdAt ? new Date(task.createdAt).toLocaleDateString() : (task.created_at ? new Date(task.created_at).toLocaleDateString() : 'Unknown')}
                             </div>
                             <div className={`mt-2 flex items-center text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} sm:mt-0`}>
                               <span className={`inline-block w-3 h-3 rounded-full mr-2 ${getPriorityColor(task.priority)}`}></span>

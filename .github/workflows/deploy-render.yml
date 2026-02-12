@@ -1,0 +1,73 @@
+name: Deploy to Render
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        cd backend
+        pip install -r requirements.txt
+        
+    - name: Deploy to Render
+      run: |
+        curl -X POST \
+          -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "name": "todo-backend",
+            "type": "web-service",
+            "runtime": "python",
+            "repository": {
+              "url": "https://github.com/danishyameen/todo-web-app-ai-chatbot",
+              "ref": "main"
+            },
+            "branch": "main",
+            "autoDeploy": true,
+            "envVars": [
+              {
+                "key": "DATABASE_URL",
+                "value": "${{ secrets.DATABASE_URL }}"
+              },
+              {
+                "key": "JWT_SECRET_KEY",
+                "value": "${{ secrets.JWT_SECRET_KEY }}"
+              },
+              {
+                "key": "JWT_REFRESH_SECRET_KEY",
+                "value": "${{ secrets.JWT_REFRESH_SECRET_KEY }}"
+              },
+              {
+                "key": "BETTER_AUTH_SECRET",
+                "value": "${{ secrets.BETTER_AUTH_SECRET }}"
+              },
+              {
+                "key": "PORT",
+                "value": "10000"
+              },
+              {
+                "key": "ENVIRONMENT",
+                "value": "production"
+              },
+              {
+                "key": "DEBUG",
+                "value": "False"
+              }
+            ],
+            "buildCommand": "pip install -r backend/requirements.txt",
+            "startCommand": "cd backend && python start_server.py"
+          }' \
+          https://api.render.com/v1/services

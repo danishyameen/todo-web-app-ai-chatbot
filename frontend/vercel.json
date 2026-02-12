@@ -1,0 +1,11 @@
+{
+  "functions": {
+    "app/chat/chat-component.tsx": {
+      "memory": 1024,
+      "maxDuration": 30
+    }
+  },
+  "buildCommand": "next build",
+  "devCommand": "next dev",
+  "installCommand": "npm install"
+}

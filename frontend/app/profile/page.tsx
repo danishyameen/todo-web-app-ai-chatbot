@@ -10,7 +10,7 @@ import { apiClient } from '../../lib/api-client';
 import PasswordVisibilityToggle from '../../components/PasswordVisibilityToggle';
 import { motion } from 'framer-motion';
 import { useTheme } from '../../lib/theme-context';
-import StorageService from '../../lib/storage-service';
+import UserDataService from '../../src/services/UserDataService';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -63,26 +63,26 @@ export default function ProfilePage() {
         review: user.review || '',
       });
 
-      // Fetch task statistics using centralized storage service
+      // Fetch task statistics using user-specific storage
       const fetchTaskStats = async () => {
         try {
-          // Try to get tasks from localStorage first
-          let tasks = StorageService.getTasks(user.id);
+          // Try to get tasks from user-specific storage first
+          let tasks = UserDataService.getTasks(user.id);
 
           // If no tasks in localStorage and we have a token, try to fetch from API
           if (tasks.length === 0 && token) {
-            tasks = await apiClient.getTasks(token);
-            // Save to localStorage for offline access
-            StorageService.saveTasks(tasks, user.id);
+            tasks = await apiClient.getTasks(token, user?.id);
+            // Save to user-specific storage for offline access
+            UserDataService.saveTasks(tasks, user.id);
           }
 
-          // Calculate stats using centralized storage service
-          const stats = StorageService.getTaskStats(user.id);
+          // Calculate stats using user-specific storage
+          const stats = UserDataService.getTaskStats(user.id);
           setTaskStats(stats);
         } catch (error) {
           console.error('Error fetching task stats:', error);
-          // Fallback to values from centralized storage service
-          const fallbackStats = StorageService.getTaskStats(user.id);
+          // Fallback to values from user-specific storage
+          const fallbackStats = UserDataService.getTaskStats(user.id);
           setTaskStats(fallbackStats);
         } finally {
           setLoading(false);
@@ -94,13 +94,26 @@ export default function ProfilePage() {
       // Listen for storage events to update profile across tabs/windows
       const handleStorageChange = () => {
         if (user) {
-          const updatedStats = StorageService.getTaskStats(user.id);
+          const updatedStats = UserDataService.getTaskStats(user.id);
+          setTaskStats(updatedStats);
+        }
+      };
+
+      // Listen for custom events dispatched by other parts of the app (like AI chatbot)
+      const handleCustomUpdate = () => {
+        if (user) {
+          const updatedStats = UserDataService.getTaskStats(user.id);
           setTaskStats(updatedStats);
         }
       };
 
       window.addEventListener('storage', handleStorageChange);
-      return () => window.removeEventListener('storage', handleStorageChange);
+      window.addEventListener('userTaskUpdate', handleCustomUpdate);
+      
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+        window.removeEventListener('userTaskUpdate', handleCustomUpdate);
+      };
     } else {
       setLoading(false);
     }
@@ -108,9 +121,9 @@ export default function ProfilePage() {
 
   const handleClearData = () => {
     if (window.confirm('Are you sure you want to clear all your data? This will remove all tasks, preferences, and user data from this device. This action cannot be undone.')) {
-      // Clear all application data using centralized storage service
+      // Clear all user-specific data using the new service
       if (user) {
-        StorageService.clearUserData(user.id);
+        UserDataService.clearUserData(user.id);
       }
 
       // Clear session storage

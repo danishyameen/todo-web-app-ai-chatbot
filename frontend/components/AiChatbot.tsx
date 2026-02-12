@@ -5,8 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../lib/auth-context';
 import { chatService } from '../lib/chat-service';
 import { v4 as uuidv4 } from 'uuid';
-import OfflineStorageService from '../src/services/offlineStorageService';
-import SyncService from '../src/services/syncService';
+import UserDataService, { Conversation, Message } from '../src/services/UserDataService';
 
 // Types for our chat system
 type Message = {
@@ -34,42 +33,44 @@ export default function AiChatbot() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  // Only initialize if user is authenticated
+  // Close chat when clicking outside
   useEffect(() => {
-    if (isAuthenticated && user && token) {
-      // Load conversations from localStorage on mount
-      const savedConversations = localStorage.getItem(`conversations_${user.id}`);
-      if (savedConversations) {
-        try {
-          const parsedConversations = JSON.parse(savedConversations);
-          setConversations(parsedConversations);
-        } catch (e) {
-          console.error('Error parsing conversations:', e);
-        }
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isOpen && chatContainerRef.current && !chatContainerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
       }
+    };
 
-      // Load conversations from offline storage
-      const offlineConversations = OfflineStorageService.getConversations(user.id);
-      if (offlineConversations.length > 0) {
-        setConversations(prev => [...offlineConversations, ...prev]);
-      }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
 
-      // Load tasks from offline storage
-      const offlineTasks = OfflineStorageService.getTasks(user.id);
-      if (offlineTasks.length > 0) {
-        // We can use these tasks to initialize the chat interface if needed
-        console.log('Loaded offline tasks:', offlineTasks);
-      }
+  // Initialize for all users (authenticated or anonymous)
+  useEffect(() => {
+    // Get user ID from auth or create anonymous user
+    const userId = user?.id || localStorage.getItem('anonymousUserId') || (() => {
+      const newId = uuidv4();
+      localStorage.setItem('anonymousUserId', newId);
+      return newId;
+    })();
 
-      // Start periodic sync when online and token is valid
-      if (navigator.onLine && token && typeof token === 'string' && token.split('.').length === 3) {
-        // Note: SyncService may not be defined, so we'll skip this for now
-        // SyncService.syncTasks(user.id, token).catch(console.error);
-        // SyncService.syncConversations(user.id, token).catch(console.error);
-      }
+    // Load conversations from user-specific storage on mount
+    const savedConversations = UserDataService.getConversations(userId);
+    if (savedConversations.length > 0) {
+      setConversations(savedConversations);
     }
-  }, [isAuthenticated, user, token]);
+
+    // Load tasks from user-specific storage
+    const userTasks = UserDataService.getTasks(userId);
+    if (userTasks.length > 0) {
+      // We can use these tasks to initialize the chat interface if needed
+      console.log('Loaded user tasks:', userTasks);
+    }
+  }, [user]);
 
   // Handle online/offline events
   useEffect(() => {
@@ -109,18 +110,6 @@ export default function AiChatbot() {
 
     if (!inputValue.trim() || isLoading) return;
 
-    // Check authentication before proceeding
-    if (!isAuthenticated || !user || !token) {
-      const authErrorMessage: Message = {
-        id: uuidv4(),
-        role: 'assistant',
-        content: 'Please log in to use the AI chatbot. You need to be authenticated to manage your tasks.',
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, authErrorMessage]);
-      return;
-    }
-
     // Add user message to the conversation
     const userMessage: Message = {
       id: uuidv4(),
@@ -149,16 +138,148 @@ export default function AiChatbot() {
         let responseText = "I've processed your request: " + inputValue.trim();
 
         // Handle specific task-related commands
+        // Get current user ID (authenticated or anonymous)
+        const currentUserId = user?.id || localStorage.getItem('anonymousUserId') || uuidv4();
+        
         if (inputValue.toLowerCase().includes("create") || inputValue.toLowerCase().includes("add")) {
-          responseText = "I've created a new task for you: " + inputValue.trim();
+          // Create a new task
+          const now = new Date();
+          const newTask = {
+            id: uuidv4(),
+            title: inputValue.trim(),
+            description: inputValue.trim(),
+            status: 'pending' as const,
+            priority: 'medium' as const,
+            due_date: null,
+            completed_at: null,
+            user_id: currentUserId,
+            category_id: null,
+            created_at: now.toISOString(),
+            updated_at: now.toISOString(),
+            // Aliases for compatibility
+            dueDate: null,
+            createdAt: now.toISOString(),
+            updatedAt: now.toISOString(),
+            completedAt: null,
+            userId: currentUserId,
+            userName: user?.name || user?.email?.split('@')[0] || 'Anonymous User',
+            categoryId: null
+          };
+
+          // Add to user-specific storage
+          UserDataService.addTask(newTask, currentUserId);
+          
+          // Dispatch a custom event to notify other components of the change
+          window.dispatchEvent(new CustomEvent('userTaskUpdate', { detail: { userId: currentUserId, action: 'add', taskId: newTask.id } }));
+          
+          // Format date and time for the response
+          const formattedDateTime = now.toLocaleString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+          
+          responseText = `I've created a new task for you: "${inputValue.trim()}". The task has been saved to your dashboard. Created on ${formattedDateTime}.`;
         } else if (inputValue.toLowerCase().includes("update") || inputValue.toLowerCase().includes("change")) {
-          responseText = "I've updated the task as requested: " + inputValue.trim();
+          // Find a task to update (for demo purposes, we'll update the first task)
+          const userTasks = UserDataService.getTasks(currentUserId);
+          if (userTasks.length > 0) {
+            const now = new Date();
+            const taskToUpdate = userTasks[0];
+            const updatedTask = {
+              ...taskToUpdate,
+              title: inputValue.trim(),
+              updated_at: now.toISOString()
+            };
+            
+            // Update in user-specific storage
+            UserDataService.updateTask(taskToUpdate.id, updatedTask, currentUserId);
+            
+            // Dispatch a custom event to notify other components of the change
+            window.dispatchEvent(new CustomEvent('userTaskUpdate', { detail: { userId: currentUserId, action: 'update', taskId: taskToUpdate.id } }));
+            
+            // Format date and time for the response
+            const formattedDateTime = now.toLocaleString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+            
+            responseText = `I've updated the task "${taskToUpdate.title}" to "${inputValue.trim()}". Updated on ${formattedDateTime}.`;
+          } else {
+            responseText = "I couldn't find any tasks to update. Please create a task first.";
+          }
         } else if (inputValue.toLowerCase().includes("delete") || inputValue.toLowerCase().includes("remove")) {
-          responseText = "I've deleted the task as requested: " + inputValue.trim();
+          // Find a task to delete (for demo purposes, we'll delete the first task)
+          const userTasks = UserDataService.getTasks(currentUserId);
+          if (userTasks.length > 0) {
+            const taskToDelete = userTasks[0];
+            
+            // Delete from user-specific storage
+            UserDataService.deleteTask(taskToDelete.id, currentUserId);
+            
+            // Dispatch a custom event to notify other components of the change
+            window.dispatchEvent(new CustomEvent('userTaskUpdate', { detail: { userId: currentUserId, action: 'delete', taskId: taskToDelete.id } }));
+            
+            responseText = `I've deleted the task "${taskToDelete.title}".`;
+          } else {
+            responseText = "I couldn't find any tasks to delete.";
+          }
+        } else if (inputValue.toLowerCase().includes("delete all") || inputValue.toLowerCase().includes("remove all")) {
+          // Delete all tasks
+          UserDataService.deleteAllTasks(currentUserId);
+          
+          // Dispatch a custom event to notify other components of the change
+          window.dispatchEvent(new CustomEvent('userTaskUpdate', { detail: { userId: currentUserId, action: 'deleteAll' } }));
+          
+          responseText = "I've deleted all your tasks.";
         } else if (inputValue.toLowerCase().includes("complete") || inputValue.toLowerCase().includes("finish")) {
-          responseText = "I've marked the task as completed: " + inputValue.trim();
+          // Find a task to mark as completed (for demo purposes, we'll update the first task)
+          const userTasks = UserDataService.getTasks(currentUserId);
+          if (userTasks.length > 0) {
+            const now = new Date();
+            const taskToComplete = userTasks[0];
+            const completedTask = {
+              ...taskToComplete,
+              status: 'completed' as const,
+              completed_at: now.toISOString(),
+              updated_at: now.toISOString()
+            };
+            
+            // Update in user-specific storage
+            UserDataService.updateTask(taskToComplete.id, completedTask, currentUserId);
+            
+            // Dispatch a custom event to notify other components of the change
+            window.dispatchEvent(new CustomEvent('userTaskUpdate', { detail: { userId: currentUserId, action: 'update', taskId: taskToComplete.id } }));
+            
+            // Format date and time for the response
+            const formattedDateTime = now.toLocaleString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+            
+            responseText = `I've marked the task "${taskToComplete.title}" as completed. Completed on ${formattedDateTime}.`;
+          } else {
+            responseText = "I couldn't find any tasks to mark as completed.";
+          }
         } else if (inputValue.toLowerCase().includes("show") || inputValue.toLowerCase().includes("list")) {
-          responseText = "Here are your tasks: You have several tasks in your list. You can view them on the tasks page.";
+          const userTasks = UserDataService.getTasks(currentUserId);
+          if (userTasks.length > 0) {
+            const taskTitles = userTasks.slice(0, 5).map(task => task.title).join(', ');
+            responseText = `You have ${userTasks.length} tasks. Here are the first few: ${taskTitles}. You can view all tasks on the tasks page.`;
+          } else {
+            responseText = "You don't have any tasks yet. You can create tasks using the AI chatbot or on the tasks page.";
+          }
         } else {
           responseText = "I understand your request: " + inputValue.trim() + ". How else can I help you?";
         }
@@ -176,7 +297,7 @@ export default function AiChatbot() {
         if (messages.length === 0) {
           const newConversation: Conversation = {
             id: uuidv4(),
-            userId: user.id,
+            userId: currentUserId,
             title: inputValue.trim().substring(0, 30) + (inputValue.trim().length > 30 ? '...' : ''),
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -185,26 +306,25 @@ export default function AiChatbot() {
           setConversations(prev => [newConversation, ...prev]);
           setActiveConversationId(newConversation.id);
 
-          // Save to localStorage
-          localStorage.setItem(`conversations_${user.id}`, JSON.stringify([newConversation, ...conversations]));
-
-          // Also save to offline storage
-          OfflineStorageService.addConversation(newConversation, user.id);
+          // Save to user-specific storage
+          UserDataService.addConversation(newConversation, currentUserId);
         }
 
-        // Save messages to offline storage
+        // Save messages to user-specific storage
         const conversationId = activeConversationId || uuidv4();
         const currentMessages = [...messages, userMessage, assistantMessage];
-        OfflineStorageService.addConversation({
+        UserDataService.addConversation({
           id: conversationId,
-          userId: user.id,
-          messages: currentMessages,
+          userId: currentUserId,
           title: inputValue.trim().substring(0, 30) + (inputValue.trim().length > 30 ? '...' : ''),
           createdAt: new Date(),
           updatedAt: new Date(),
-        }, user.id);
+        }, currentUserId);
       } else {
-        // Offline mode - save to local storage and show temporary response
+        // Offline mode - handle task operations in offline mode
+        // Get current user ID (authenticated or anonymous)
+        const currentUserId = user?.id || localStorage.getItem('anonymousUserId') || uuidv4();
+        
         const assistantMessage: Message = {
           id: uuidv4(),
           role: 'assistant',
@@ -214,34 +334,211 @@ export default function AiChatbot() {
 
         setMessages(prev => [...prev, assistantMessage]);
 
-        // Save to offline storage for later sync
+        // Handle specific task-related commands in offline mode
+        if (inputValue.toLowerCase().includes("create") || inputValue.toLowerCase().includes("add")) {
+          // Create a new task
+          const now = new Date();
+          const newTask = {
+            id: uuidv4(),
+            title: inputValue.trim(),
+            description: inputValue.trim(),
+            status: 'pending' as const,
+            priority: 'medium' as const,
+            due_date: null,
+            completed_at: null,
+            user_id: currentUserId,
+            category_id: null,
+            created_at: now.toISOString(),
+            updated_at: now.toISOString(),
+            // Aliases for compatibility
+            dueDate: null,
+            createdAt: now.toISOString(),
+            updatedAt: now.toISOString(),
+            completedAt: null,
+            userId: currentUserId,
+            userName: user?.name || user?.email?.split('@')[0] || 'Anonymous User',
+            categoryId: null
+          };
+
+          // Add to user-specific storage
+          UserDataService.addTask(newTask, currentUserId);
+          
+          // Dispatch a custom event to notify other components of the change
+          window.dispatchEvent(new CustomEvent('userTaskUpdate', { detail: { userId: currentUserId, action: 'add', taskId: newTask.id } }));
+          
+          // Format date and time for the response
+          const formattedDateTime = now.toLocaleString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+          
+          // Update the assistant message to reflect the action
+          const updatedAssistantMessage: Message = {
+            id: uuidv4(),
+            role: 'assistant',
+            content: `I've created a new task for you: "${inputValue.trim()}". The task has been saved locally and will sync when online. Created on ${formattedDateTime}.`,
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev.slice(0, -1), updatedAssistantMessage]); // Replace the previous message
+        } else if (inputValue.toLowerCase().includes("update") || inputValue.toLowerCase().includes("change")) {
+          // Find a task to update (for demo purposes, we'll update the first task)
+          const userTasks = UserDataService.getTasks(currentUserId);
+          if (userTasks.length > 0) {
+            const now = new Date();
+            const taskToUpdate = userTasks[0];
+            const updatedTask = {
+              ...taskToUpdate,
+              title: inputValue.trim(),
+              updated_at: now.toISOString()
+            };
+
+            // Update in user-specific storage
+            UserDataService.updateTask(taskToUpdate.id, updatedTask, currentUserId);
+
+            // Dispatch a custom event to notify other components of the change
+            window.dispatchEvent(new CustomEvent('userTaskUpdate', { detail: { userId: currentUserId, action: 'update', taskId: taskToUpdate.id } }));
+
+            // Format date and time for the response
+            const formattedDateTime = now.toLocaleString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+
+            // Update the assistant message to reflect the action
+            const updatedAssistantMessage: Message = {
+              id: uuidv4(),
+              role: 'assistant',
+              content: `I've updated the task "${taskToUpdate.title}" to "${inputValue.trim()}". The changes have been saved locally and will sync when online. Updated on ${formattedDateTime}.`,
+              timestamp: new Date(),
+            };
+            setMessages(prev => [...prev.slice(0, -1), updatedAssistantMessage]); // Replace the previous message
+          } else {
+            // Update the assistant message to reflect the error
+            const updatedAssistantMessage: Message = {
+              id: uuidv4(),
+              role: 'assistant',
+              content: "I couldn't find any tasks to update. Please create a task first.",
+              timestamp: new Date(),
+            };
+            setMessages(prev => [...prev.slice(0, -1), updatedAssistantMessage]); // Replace the previous message
+          }
+        } else if (inputValue.toLowerCase().includes("delete") || inputValue.toLowerCase().includes("remove")) {
+          // Find a task to delete (for demo purposes, we'll delete the first task)
+          const userTasks = UserDataService.getTasks(currentUserId);
+          if (userTasks.length > 0) {
+            const taskToDelete = userTasks[0];
+            
+            // Delete from user-specific storage
+            UserDataService.deleteTask(taskToDelete.id, currentUserId);
+            
+            // Dispatch a custom event to notify other components of the change
+            window.dispatchEvent(new CustomEvent('userTaskUpdate', { detail: { userId: currentUserId, action: 'delete', taskId: taskToDelete.id } }));
+            
+            // Update the assistant message to reflect the action
+            const updatedAssistantMessage: Message = {
+              id: uuidv4(),
+              role: 'assistant',
+              content: `I've deleted the task "${taskToDelete.title}". The changes have been saved locally and will sync when online.`,
+              timestamp: new Date(),
+            };
+            setMessages(prev => [...prev.slice(0, -1), updatedAssistantMessage]); // Replace the previous message
+          } else {
+            // Update the assistant message to reflect the error
+            const updatedAssistantMessage: Message = {
+              id: uuidv4(),
+              role: 'assistant',
+              content: "I couldn't find any tasks to delete.",
+              timestamp: new Date(),
+            };
+            setMessages(prev => [...prev.slice(0, -1), updatedAssistantMessage]); // Replace the previous message
+          }
+        } else if (inputValue.toLowerCase().includes("delete all") || inputValue.toLowerCase().includes("remove all")) {
+          // Delete all tasks
+          UserDataService.deleteAllTasks(currentUserId);
+          
+          // Dispatch a custom event to notify other components of the change
+          window.dispatchEvent(new CustomEvent('userTaskUpdate', { detail: { userId: currentUserId, action: 'deleteAll' } }));
+          
+          // Update the assistant message to reflect the action
+          const updatedAssistantMessage: Message = {
+            id: uuidv4(),
+            role: 'assistant',
+            content: "I've deleted all your tasks. The changes have been saved locally and will sync when online.",
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev.slice(0, -1), updatedAssistantMessage]); // Replace the previous message
+        } else if (inputValue.toLowerCase().includes("complete") || inputValue.toLowerCase().includes("finish")) {
+          // Find a task to mark as completed (for demo purposes, we'll update the first task)
+          const userTasks = UserDataService.getTasks(currentUserId);
+          if (userTasks.length > 0) {
+            const now = new Date();
+            const taskToComplete = userTasks[0];
+            const completedTask = {
+              ...taskToComplete,
+              status: 'completed' as const,
+              completed_at: now.toISOString(),
+              updated_at: now.toISOString()
+            };
+
+            // Update in user-specific storage
+            UserDataService.updateTask(taskToComplete.id, completedTask, currentUserId);
+
+            // Dispatch a custom event to notify other components of the change
+            window.dispatchEvent(new CustomEvent('userTaskUpdate', { detail: { userId: currentUserId, action: 'update', taskId: taskToComplete.id } }));
+
+            // Format date and time for the response
+            const formattedDateTime = now.toLocaleString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+
+            // Update the assistant message to reflect the action
+            const updatedAssistantMessage: Message = {
+              id: uuidv4(),
+              role: 'assistant',
+              content: `I've marked the task "${taskToComplete.title}" as completed. The changes have been saved locally and will sync when online. Completed on ${formattedDateTime}.`,
+              timestamp: new Date(),
+            };
+            setMessages(prev => [...prev.slice(0, -1), updatedAssistantMessage]); // Replace the previous message
+          } else {
+            // Update the assistant message to reflect the error
+            const updatedAssistantMessage: Message = {
+              id: uuidv4(),
+              role: 'assistant',
+              content: "I couldn't find any tasks to mark as completed.",
+              timestamp: new Date(),
+            };
+            setMessages(prev => [...prev.slice(0, -1), updatedAssistantMessage]); // Replace the previous message
+          }
+        }
+
+        // Save to user-specific storage for later sync
         const conversationId = activeConversationId || uuidv4();
         const newConversation: Conversation = {
           id: conversationId,
-          userId: user.id,
+          userId: currentUserId,
           title: inputValue.trim().substring(0, 30) + (inputValue.trim().length > 30 ? '...' : ''),
           createdAt: new Date(),
           updatedAt: new Date(),
         };
 
-        // Save to offline storage
-        OfflineStorageService.addConversation(newConversation, user.id);
-        OfflineStorageService.addTask({
-          id: uuidv4(),
-          title: inputValue.trim(),
-          description: inputValue.trim(),
-          status: 'pending',
-          priority: 'medium',
-          due_date: null,
-          completed_at: null,
-          user_id: user.id,
-          category_id: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }, user.id);
+        // Save to user-specific storage
+        UserDataService.addConversation(newConversation, currentUserId);
 
         // Show notification about offline status
-        alert('You are offline. Your task has been saved locally and will sync when online.');
+        alert('You are offline. Your task operations have been saved locally and will sync when online.');
       }
     } catch (error) {
       console.error('Error getting response:', error);
@@ -265,16 +562,16 @@ export default function AiChatbot() {
         };
         setMessages(prev => [...prev, assistantMessage]);
 
-        // Save to offline storage
+        // Save to user-specific storage
+        const currentUserId = user?.id || localStorage.getItem('anonymousUserId') || uuidv4();
         const conversationId = activeConversationId || uuidv4();
-        OfflineStorageService.addConversation({
+        UserDataService.addConversation({
           id: conversationId,
-          userId: user.id,
-          messages: [...messages, userMessage],
+          userId: currentUserId,
           title: inputValue.trim().substring(0, 30) + (inputValue.trim().length > 30 ? '...' : ''),
           createdAt: new Date(),
           updatedAt: new Date(),
-        }, user.id);
+        }, currentUserId);
       } else {
         const errorMessage: Message = {
           id: uuidv4(),
@@ -341,6 +638,7 @@ export default function AiChatbot() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-30 backdrop-blur-sm"
+            ref={chatContainerRef}
           >
             <motion.div
               initial={{ scale: 0.8, y: 100, opacity: 0 }}

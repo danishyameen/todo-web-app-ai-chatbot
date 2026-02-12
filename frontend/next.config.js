@@ -1,12 +1,23 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone', // For standalone deployment
-  experimental: {
-    typedRoutes: true,
-    // Remove serverActions as it's now default in Next.js 14
-  },
+  typedRoutes: true,
+  // Force using webpack instead of Turbopack
   images: {
-    domains: ['lh3.googleusercontent.com', 'avatars.githubusercontent.com', 'localhost'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'avatars.githubusercontent.com',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+    ],
   },
   async headers() {
     return [

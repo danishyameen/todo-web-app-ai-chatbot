@@ -1,3 +1,3 @@
-import ChatPageWrapper from './page-wrapper';
+import SimpleChatPageContent from './simple-chat';
 
-export default ChatPageWrapper;
+export default SimpleChatPageContent;

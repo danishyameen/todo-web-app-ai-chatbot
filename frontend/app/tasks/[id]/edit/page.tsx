@@ -7,6 +7,14 @@ import { useAuth } from '../../../../lib/auth-context';
 import Header from '../../../../components/Header';
 import { apiClient } from '../../../../lib/api-client';
 
+// Helper function to extract the string ID from the param
+function extractTaskId(id: string | string[] | undefined): string | null {
+  if (Array.isArray(id)) {
+    return id[0] || null;
+  }
+  return id || null;
+}
+
 export default function EditTaskPage() {
   const { id } = useParams();
   const router = useRouter();
@@ -26,33 +34,78 @@ export default function EditTaskPage() {
 
   useEffect(() => {
     const fetchTask = async () => {
-      try {
-        // Fetch the specific task from the backend/localStorage
-        const taskData = await apiClient.getTaskById(id as string, token);
-        if (taskData) {
-          setTask(taskData);
-          setFormData({
-            title: taskData.title || '',
-            description: taskData.description || '',
-            status: taskData.status || 'pending',
-            priority: taskData.priority || 'medium',
-            dueDate: taskData.dueDate || '',
-            category: taskData.category || ''
-          });
-        } else {
-          setError('Task not found');
-        }
-      } catch (err) {
-        console.error('Failed to load task:', err);
-        setError('Failed to load task for editing');
-      } finally {
+      if (!id) {
+        setError('Task ID not found');
         setLoading(false);
+        return;
+      }
+
+      // Extract the task ID ensuring it's a string
+      if (Array.isArray(id)) {
+        if (!id[0]) {
+          setError('Task ID not found');
+          setLoading(false);
+          return;
+        }
+        try {
+          const taskData = await apiClient.getTaskById(id[0]!, token);
+          if (taskData) {
+            setTask(taskData);
+            setFormData({
+              title: taskData.title || '',
+              description: taskData.description || '',
+              status: taskData.status || 'pending',
+              priority: taskData.priority || 'medium',
+              dueDate: taskData.dueDate || '',
+              category: taskData.category || ''
+            });
+          } else {
+            setError('Task not found');
+          }
+        } catch (err) {
+          console.error('Failed to load task:', err);
+          setError('Failed to load task for editing');
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        // Handle the case where id is a string directly
+        if (!id) {
+          setError('Task ID not found');
+          setLoading(false);
+          return;
+        }
+        try {
+          const taskData = await apiClient.getTaskById(id!, token);
+          if (taskData) {
+            setTask(taskData);
+            setFormData({
+              title: taskData.title || '',
+              description: taskData.description || '',
+              status: taskData.status || 'pending',
+              priority: taskData.priority || 'medium',
+              dueDate: taskData.dueDate || '',
+              category: taskData.category || ''
+            });
+          } else {
+            setError('Task not found');
+          }
+        } catch (err) {
+          console.error('Failed to load task:', err);
+          setError('Failed to load task for editing');
+        } finally {
+          setLoading(false);
+        }
       }
     };
 
     // Only fetch if we have the necessary data
     if (id && isAuthenticated && token) {
       fetchTask();
+    } else if (!id) {
+      // If id is not available
+      setError('Task ID not found');
+      setLoading(false);
     } else if (id && !isAuthenticated) {
       // Not authenticated
       setError('You must be logged in to edit this task');
@@ -83,10 +136,17 @@ export default function EditTaskPage() {
 
     try {
       // Update task via API/localStorage
-      const updatedTask = await apiClient.updateTask(id as string, formData, token);
+      const taskId = extractTaskId(id);
+      if (!taskId) {
+        setError('Task ID not found');
+        return;
+      }
+      const updatedTask = await apiClient.updateTask(taskId, formData, token, user?.id);
 
       // Navigate to dashboard after successful update
-      router.push('/dashboard');
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 100);
     } catch (err) {
       console.error('Error updating task:', err);
       setError('An error occurred while updating the task. Please try again.');
@@ -106,10 +166,17 @@ export default function EditTaskPage() {
 
     try {
       // Delete task via API/localStorage
-      await apiClient.deleteTask(id as string, token);
+      const taskId = extractTaskId(id);
+      if (!taskId) {
+        setError('Task ID not found');
+        return;
+      }
+      await apiClient.deleteTask(taskId, token, user?.id);
 
-      // Navigate to dashboard after successful deletion
-      router.push('/dashboard');
+      // Add a small delay to ensure data is properly deleted before navigation
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 100);
     } catch (err) {
       console.error('Error deleting task:', err);
       setError('An error occurred while deleting the task. Please try again.');

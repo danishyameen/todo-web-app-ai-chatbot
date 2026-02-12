@@ -2,9 +2,34 @@
 
 A modern, feature-rich todo management application built with Next.js 14, FastAPI, and PostgreSQL. This application provides a complete solution for managing tasks with authentication, categorization, and advanced filtering capabilities, with PWA support for offline functionality.
 
-## 🌟 Features
+## 🎯 Key Features
 
-### Core Features
+### 🤖 AI Chatbot Integration
+- **Natural Language Task Management**: Create, update, delete, and complete tasks using conversational commands
+- **Intelligent Responses**: AI understands context and provides helpful feedback
+- **Anonymous Chat**: Use chatbot without signing up
+- **Conversation History**: All chats saved with timestamps in left sidebar
+- **Click to Load**: Access any previous conversation instantly
+- **Real-time Updates**: Task changes reflect immediately across the app
+- **Multi-Command Support**:
+  - `"Add buy groceries"` - Creates new task
+  - `"Show my tasks"` - Lists all tasks
+  - `"Complete task"` - Marks first task as completed
+  - `"Delete all tasks"` - Removes all tasks
+  - And more...
+
+### 🎨 Beautiful UI/UX
+- **Framer Motion Animations**: Smooth, professional animations on every page
+- **Staggered Entry Effects**: Cards and lists animate in sequence
+- **Hover Effects**: Scale, glow, and transform on interaction
+- **Loading States**: Elegant spinners and skeleton loaders
+- **Gradient Backgrounds**: Eye-catching color gradients throughout
+- **Custom Scrollbar**: Beautiful gradient scrollbar with hover effects
+- **Glassmorphism**: Backdrop blur effects for modern look
+- **Dark Mode Support**: Full dark theme with animated transitions
+- **Responsive Design**: Perfect on desktop, tablet, and mobile
+
+### 📋 Core Task Management Features
 - **Progressive Web App (PWA)**: Installable application that works offline and online
 - **Authentication System**: Complete login, signup, and logout functionality with password visibility toggle
 - **Task Management**: Create, read, update, and delete tasks with real-time updates
@@ -600,4 +625,134 @@ If you encounter any issues or have questions, please open an issue in the repos
 
 Built with ❤️ using Next.js, FastAPI, and PostgreSQL.
 
-**Taskly** - Your intelligent task management companion.
+## 📸 Screenshots & Features
+
+### Landing Page
+- Beautiful gradient backgrounds
+- Animated feature cards with icons
+- Smooth scroll and transitions
+- Responsive hero section
+
+### Chat Interface
+- Left sidebar with conversation history
+- Real-time message animations
+- User/assistant message bubbles
+- Typing indicators
+- Anonymous user support
+- Date/time stamps on conversations
+
+### Dashboard
+- Animated statistics cards
+- Task overview with gradients
+- Quick actions
+- Recent tasks list
+
+### Tasks Page
+- Advanced filtering (status, priority, search)
+- Animated task cards
+- Pagination
+- Bulk delete functionality
+
+## 🎨 Animation Highlights
+
+### Global Animations
+- **Smooth Scrolling**: Native smooth scroll behavior
+- **Custom Scrollbar**: Gradient scrollbar (blue to purple)
+- **Page Transitions**: Fade and slide-up on load
+- **Hover Glows**: Blue shadow on hover with lift effect
+
+### Component Animations
+- **Cards**: Scale-in with stagger delays
+- **Icons**: 360° rotation on hover
+- **Buttons**: Scale + shadow on hover/tap
+- **Lists**: Staggered entry animations
+- **Messages**: Slide and fade animations
+- **Loading**: Pulsing dots and spinners
+
+### Advanced Effects
+- **Glassmorphism**: Backdrop blur with transparency
+- **Gradient Text**: Animated gradient text shifting
+- **Pulse Rings**: Notification indicators
+- **Gentle Bounce**: CTA button animations
+
+## 🚀 Recent Improvements
+
+### Version 2.0 (Latest)
+- ✅ Complete UI/UX overhaul with Framer Motion
+- ✅ AI Chatbot with anonymous user support
+- ✅ Conversation persistence with localStorage
+- ✅ Removed authentication blocks from chat
+- ✅ User data isolation improvements
+- ✅ Custom scrollbar styling
+- ✅ Global animation system
+- ✅ Dark mode enhancements
+- ✅ Mobile responsiveness improvements
+
+### Bug Fixes
+- ✅ Fixed "User not authenticated" error in chat
+- ✅ Fixed conversation history not persisting
+- ✅ Fixed user ID display in chat sidebar
+- ✅ Fixed task operations for anonymous users
+- ✅ Fixed duplicate framer-motion imports
+
+## 🎯 Use Cases
+
+1. **Personal Task Management**: Keep track of daily todos
+2. **Project Planning**: Organize tasks by category and priority
+3. **Team Collaboration**: Share and manage team tasks
+4. **AI-Assisted Workflow**: Use natural language to manage tasks
+5. **Offline Work**: Continue working without internet connection
+6. **Mobile Task Management**: Access from any device
+
+## 🔐 Security Features
+
+- JWT token-based authentication
+- Password hashing with bcrypt
+- Secure session management
+- User data isolation
+- Environment variable protection
+- CORS configuration
+- SQL injection prevention
+- XSS protection
+
+## 📊 Performance
+
+- **60fps Animations**: Hardware-accelerated transforms
+- **Optimized Builds**: Next.js production optimization
+- **Lazy Loading**: Components load on demand
+- **Code Splitting**: Automatic route-based splitting
+- **Image Optimization**: Next.js Image component
+- **Caching**: Service worker for offline caching
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📝 License
+
+This project is open source and available under the MIT License.
+
+## 👨‍💻 Author
+
+**Danish Yameen**
+
+- GitHub: [@danishyameen](https://github.com/danishyameen)
+- Repository: [todo-web-app-ai-chatbot](https://github.com/danishyameen/todo-web-app-ai-chatbot)
+
+## 🙏 Acknowledgments
+
+- Next.js team for the amazing framework
+- Framer Motion for beautiful animations
+- FastAPI for the powerful backend framework
+- Neon for serverless PostgreSQL
+- Tailwind CSS for the utility-first CSS
+
+---
+
+**Taskly** - Your intelligent, beautiful task management companion with AI chat assistance! 🚀✨

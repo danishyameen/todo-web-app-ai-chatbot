@@ -1,0 +1,33 @@
+apiVersion: render.com/v1alpha4
+kind: Blueprint
+metadata:
+  name: todo-backend-deployment
+spec:
+  services:
+    - name: todo-backend
+      type: web
+      runtime: python
+      repo: https://github.com/danishyameen/todo-web-app-ai-chatbot.git
+      branch: main
+      buildCommand: pip install -r backend/requirements.txt
+      startCommand: cd backend && python start_server.py
+      envVars:
+        - key: DATABASE_URL
+          fromSecret: DATABASE_URL
+        - key: JWT_SECRET_KEY
+          fromSecret: JWT_SECRET_KEY
+        - key: JWT_REFRESH_SECRET_KEY
+          fromSecret: JWT_REFRESH_SECRET_KEY
+        - key: BETTER_AUTH_SECRET
+          fromSecret: BETTER_AUTH_SECRET
+        - key: PORT
+          value: "10000"
+        - key: ENVIRONMENT
+          value: production
+        - key: DEBUG
+          value: "False"
+        - key: CORS_ALLOWED_ORIGINS
+          value: "https://todo-backend.onrender.com"
+      plan: starter
+      autoDeploy: true
+      region: oregon

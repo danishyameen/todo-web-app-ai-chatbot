@@ -8,6 +8,7 @@ import Header from '../../../components/Header';
 import { apiClient } from '../../../lib/api-client';
 import { motion } from 'framer-motion';
 import { useTheme } from '../../../lib/theme-context';
+import UserDataService from '../../../src/services/UserDataService';
 
 export default function CreateTaskPage() {
   const router = useRouter();
@@ -48,11 +49,56 @@ export default function CreateTaskPage() {
     }
 
     try {
-      // Create task via API
-      const taskData = await apiClient.createTask(formData, token);
+      // Determine if we're online or offline
+      const isOnline = navigator.onLine;
 
-      // Navigate to dashboard after successful creation
-      router.push('/dashboard');
+      if (isOnline) {
+        // Online mode - create task via API first, skip local update since we'll add it manually
+        const taskData = await apiClient.createTask(formData, token, user?.id, true);
+        
+        // Add to user-specific storage for offline access
+        UserDataService.addTask(taskData, user!.id);
+
+        // Add a small delay to ensure data is saved before navigation
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 100);
+      } else {
+        // Offline mode - create optimistic task
+        const optimisticTask = {
+          id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
+          title: formData.title,
+          description: formData.description,
+          status: formData.status as 'pending' | 'in-progress' | 'completed',
+          priority: formData.priority as 'low' | 'medium' | 'high',
+          due_date: formData.dueDate || null,
+          completed_at: null,
+          user_id: user?.id || '',
+          category_id: null,
+          category: formData.category || null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          // Aliases for compatibility
+          dueDate: formData.dueDate || null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          completedAt: null,
+          userId: user?.id || '',
+          userName: user?.name || user?.email?.split('@')[0] || 'User',
+          categoryId: null
+        };
+
+        // Add to user-specific storage
+        UserDataService.addTask(optimisticTask, user!.id);
+
+        // Show notification about offline status
+        alert('You are offline. Your task has been saved locally and will sync when online.');
+
+        // Add a small delay to ensure data is saved before navigation
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 100);
+      }
     } catch (err) {
       console.error('Error creating task:', err);
       setError('An error occurred while creating the task. Please try again.');

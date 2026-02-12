@@ -358,7 +358,24 @@
       "Bash(taskkill /PID 15664 /F:*)",
       "Bash(powershell -Command:*)",
       "Bash(taskkill /IM python.exe /F:*)",
-      "Bash(git remote set-url:*)"
+      "Bash(git remote set-url:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(vc --version:*)",
+      "Bash(vc login)",
+      "Bash(vc --prod)",
+      "Bash(npm install @heroicons/react)",
+      "Bash(npm install @heroicons/react@latest)",
+      "Bash(vc --build:*)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npx tsc:*)",
+      "Bash(awk:*)",
+      "Bash(python -m pip install:*)",
+      "Bash(.venvScriptsActivate.ps1)",
+      "Bash(uvicorn main:app --reload --host 0.0.0.0 --port 8000:*)",
+      "Bash(python -c \"from venv.Lib.site-packages.pip import main; main\\(\\)\")",
+      "Bash(npx kill-port:*)",
+      "Bash(curl:*)"
     ]
   }
 }

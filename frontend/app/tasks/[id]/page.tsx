@@ -7,6 +7,14 @@ import { useAuth } from '../../../lib/auth-context';
 import Header from '../../../components/Header';
 import { apiClient } from '../../../lib/api-client';
 
+// Helper function to extract the string ID from the param
+function extractTaskId(id: string | string[] | undefined): string | null {
+  if (Array.isArray(id)) {
+    return id[0] || null;
+  }
+  return id || null;
+}
+
 export default function TaskDetailPage() {
   const { id } = useParams();
   const router = useRouter();
@@ -25,7 +33,12 @@ export default function TaskDetailPage() {
 
       try {
         // Fetch the specific task from the backend
-        const taskData = await apiClient.getTaskById(id as string, token);
+        const taskId = extractTaskId(id);
+        if (!taskId) {
+          setError('Task ID not found');
+          return;
+        }
+        const taskData = await apiClient.getTaskById(taskId, token);
         setTask(taskData);
       } catch (err) {
         console.error('Failed to load task:', err);
@@ -135,10 +148,17 @@ export default function TaskDetailPage() {
 
     try {
       // Delete task via API/localStorage
-      await apiClient.deleteTask(id as string, token);
+      const taskId = extractTaskId(id);
+      if (!taskId) {
+        setError('Task ID not found');
+        return;
+      }
+      await apiClient.deleteTask(taskId, token, user?.id);
 
-      // Navigate to dashboard immediately after successful deletion
-      router.push('/dashboard');
+      // Add a small delay to ensure data is properly deleted before navigation
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 100);
     } catch (err) {
       console.error('Error deleting task:', err);
       setError('An error occurred while deleting the task. Please try again.');

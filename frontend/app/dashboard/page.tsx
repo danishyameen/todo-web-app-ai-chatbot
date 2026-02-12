@@ -8,7 +8,7 @@ import Header from '../../components/Header';
 import { apiClient } from '../../lib/api-client';
 import { motion } from 'framer-motion';
 import { useTheme } from '../../lib/theme-context';
-import StorageService from '../../lib/storage-service';
+import UserDataService from '../../src/services/UserDataService';
 import { Task } from '../../types/task';
 
 export default function DashboardPage() {
@@ -41,19 +41,34 @@ export default function DashboardPage() {
       }
 
       try {
-        // Try to get tasks from localStorage first using centralized storage service
-        let tasks = StorageService.getTasks(user.id);
+        // Try to get tasks from user-specific storage first
+        let tasks = UserDataService.getTasks(user.id);
+        console.log(`Dashboard: Found ${tasks.length} tasks in local storage for user ${user.id}`);
 
-        // If no tasks in localStorage and we have a token, try to fetch from API
-        if (tasks.length === 0 && token) {
-          const apiTasks: any[] = await apiClient.getTasks(token);
-          tasks = Array.isArray(apiTasks) ? apiTasks : [];
-          // Save to localStorage for offline access using centralized storage service
-          StorageService.saveTasks(tasks, user.id);
+        // If we have a token, try to fetch from API
+        if (token) {
+          try {
+            console.log(`Dashboard: Syncing with API for user ${user.id}`);
+            const apiTasks: any[] = await apiClient.getTasks(token, user?.id);
+            console.log(`Dashboard: Fetched ${apiTasks.length} tasks from API for user ${user.id}`);
+            
+            // Only update local storage if we got tasks from the API
+            // If API returns empty but we have local tasks, keep the local tasks
+            if (Array.isArray(apiTasks) && (apiTasks.length > 0 || tasks.length === 0)) {
+              tasks = apiTasks;
+              // Save to user-specific storage for offline access
+              UserDataService.saveTasks(tasks, user.id);
+              console.log(`Dashboard: Saved ${tasks.length} tasks to local storage for user ${user.id}`);
+            } else if (tasks.length > 0) {
+              console.log(`Dashboard: Keeping ${tasks.length} local tasks since API returned empty`);
+            }
+          } catch (apiError) {
+            console.warn('Dashboard: Failed to sync with API, using local storage', apiError);
+          }
         }
 
-        // Calculate stats using centralized storage service
-        const taskStats = StorageService.getTaskStats(user.id);
+        // Calculate stats using user-specific storage
+        const taskStats = UserDataService.getTaskStats(user.id);
         setStats({
           total: taskStats.total,
           completed: taskStats.completed,
@@ -61,14 +76,14 @@ export default function DashboardPage() {
           inProgress: taskStats.inProgress
         });
 
-        // Set recent tasks (latest 4) from localStorage
+        // Set recent tasks (latest 4) from user-specific storage
         const sortedTasks = Array.isArray(tasks) ? tasks.sort((a: any, b: any) => new Date(b.created_at || b.createdAt).getTime() - new Date(a.created_at || a.createdAt).getTime()) : [];
         setRecentTasks(sortedTasks.slice(0, 4));
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
-        // Fallback to values from centralized storage service
+        // Fallback to values from user-specific storage
         if (user) {
-          const fallbackStats = StorageService.getTaskStats(user.id);
+          const fallbackStats = UserDataService.getTaskStats(user.id);
           setStats({
             total: fallbackStats.total,
             completed: fallbackStats.completed,
@@ -76,8 +91,9 @@ export default function DashboardPage() {
             inProgress: fallbackStats.inProgress
           });
 
-          const fallbackTasks = StorageService.getTasks(user.id);
-          const sortedFallbackTasks = Array.isArray(fallbackTasks) ? fallbackTasks.sort((a: any, b: any) => new Date(a.created_at || a.createdAt).getTime() - new Date(b.created_at || b.createdAt).getTime()) : [];
+          const fallbackTasks = UserDataService.getTasks(user.id);
+          console.log(`Dashboard: Using ${fallbackTasks.length} fallback tasks after API error for user ${user.id}`);
+          const sortedFallbackTasks = Array.isArray(fallbackTasks) ? fallbackTasks.sort((a: any, b: any) => new Date(b.created_at || b.createdAt).getTime() - new Date(a.created_at || a.createdAt).getTime()) : [];
           setRecentTasks(sortedFallbackTasks.slice(0, 4));
         } else {
           setStats({
@@ -98,17 +114,34 @@ export default function DashboardPage() {
     // Listen for storage events to update dashboard across tabs/windows
     const handleStorageChange = () => {
       if (user) {
-        const updatedStats = StorageService.getTaskStats(user.id);
+        const updatedStats = UserDataService.getTaskStats(user.id);
         setStats(updatedStats);
 
-        const allTasks = StorageService.getTasks(user.id);
+        const allTasks = UserDataService.getTasks(user.id);
+        const sortedTasks = allTasks.sort((a: any, b: any) => new Date(b.createdAt || b.created_at).getTime() - new Date(a.createdAt || a.created_at).getTime());
+        setRecentTasks(sortedTasks.slice(0, 4));
+      }
+    };
+
+    // Listen for custom events dispatched by other parts of the app (like AI chatbot)
+    const handleCustomUpdate = () => {
+      if (user) {
+        const updatedStats = UserDataService.getTaskStats(user.id);
+        setStats(updatedStats);
+
+        const allTasks = UserDataService.getTasks(user.id);
         const sortedTasks = allTasks.sort((a: any, b: any) => new Date(b.createdAt || b.created_at).getTime() - new Date(a.createdAt || a.created_at).getTime());
         setRecentTasks(sortedTasks.slice(0, 4));
       }
     };
 
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('userTaskUpdate', handleCustomUpdate);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('userTaskUpdate', handleCustomUpdate);
+    };
   }, [isAuthenticated, token, user, router]);
 
   // Always render the component structure to ensure consistent hooks
@@ -333,6 +366,12 @@ export default function DashboardPage() {
                               <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
                             </svg>
                             {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date'}
+                          </div>
+                          <div className={`mr-6 flex items-center text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                            <svg className={`flex-shrink-0 mr-2 h-5 w-5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                            </svg>
+                            Created: {task.createdAt ? new Date(task.createdAt).toLocaleDateString() : (task.created_at ? new Date(task.created_at).toLocaleDateString() : 'Unknown')}
                           </div>
                           <div className={`mt-2 flex items-center text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} sm:mt-0`}>
                             <span className={`inline-block w-3 h-3 rounded-full mr-2 ${

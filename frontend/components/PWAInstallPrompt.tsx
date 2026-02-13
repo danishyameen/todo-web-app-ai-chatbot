@@ -46,12 +46,14 @@ export default function PWAInstallPrompt() {
       return;
     }
 
-    // Check if user has already seen the prompt during this session
-    const currentSessionKey = `pwa-prompt-shown-${user.id}`;
+    // Check if user has already seen the prompt during this specific session
+    // Using a timestamp-based session key to ensure it shows on EVERY new signin
+    const loginTimestamp = sessionStorage.getItem('loginTimestamp');
+    const currentSessionKey = `pwa-prompt-shown-${user.id}-${loginTimestamp}`;
     const shownThisSession = sessionStorage.getItem(currentSessionKey);
     
     if (shownThisSession) {
-      return; // Already shown during this login session
+      return; // Already shown during this specific login session
     }
 
     // For Android/Chrome - listen for beforeinstallprompt event

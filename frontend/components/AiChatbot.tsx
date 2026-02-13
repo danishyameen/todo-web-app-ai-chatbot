@@ -6,6 +6,8 @@ import { useAuth } from '../lib/auth-context';
 import { chatService } from '../lib/chat-service';
 import { v4 as uuidv4 } from 'uuid';
 import UserDataService from '../src/services/UserDataService';
+import { AICommandProcessor } from '../lib/ai-command-processor';
+import { useRouter } from 'next/navigation';
 
 // Types for our chat system
 type Message = {
@@ -25,9 +27,11 @@ type Conversation = {
 
 export default function AiChatbot() {
   const { user, token, isAuthenticated } = useAuth();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
+  const commandProcessor = new AICommandProcessor(router);
   const [isLoading, setIsLoading] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
@@ -130,6 +134,23 @@ export default function AiChatbot() {
         // Online mode - send to server
         // For now, we'll simulate an AI response since the actual chat service may not be available
         // In a real implementation, this would connect to the backend AI service
+
+        // First check if this is an AI agent command (navigation, app info, etc.)
+        const commandResult = await commandProcessor.processCommand(inputValue, user);
+        
+        if (commandResult.isCommand) {
+          // This was a command - show the result
+          const assistantMessage: Message = {
+            id: uuidv4(),
+            role: 'assistant',
+            content: commandResult.response,
+            timestamp: new Date(),
+          };
+          
+          setMessages(prev => [...prev, assistantMessage]);
+          setIsLoading(false);
+          return;
+        }
 
         // Simulate a delay for the "AI processing"
         await new Promise(resolve => setTimeout(resolve, 1000));

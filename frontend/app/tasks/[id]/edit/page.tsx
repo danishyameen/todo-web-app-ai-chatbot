@@ -48,7 +48,7 @@ export default function EditTaskPage() {
           return;
         }
         try {
-          const taskData = await apiClient.getTaskById(id[0]!, token);
+          const taskData = await apiClient.getTaskById(id[0]!, token || '');
           if (taskData) {
             setTask(taskData);
             setFormData({
@@ -76,7 +76,7 @@ export default function EditTaskPage() {
           return;
         }
         try {
-          const taskData = await apiClient.getTaskById(id!, token);
+          const taskData = await apiClient.getTaskById(id, token || '');
           if (taskData) {
             setTask(taskData);
             setFormData({

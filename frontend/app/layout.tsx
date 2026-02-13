@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { ReactNode } from 'react';
 import { Providers } from './providers';
+import PWAInstallPrompt from '../components/PWAInstallPrompt';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -70,6 +71,9 @@ export default function RootLayout({
           <main className="relative z-10">
             <Providers>{children}</Providers>
           </main>
+
+          {/* PWA Install Prompt */}
+          <PWAInstallPrompt />
         </div>
       </body>
     </html>

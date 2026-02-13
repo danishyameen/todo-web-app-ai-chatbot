@@ -2,7 +2,7 @@
 // Simple test to verify user-specific data storage functionality
 
 import React from 'react';
-import UserDataService from '../src/services/UserDataService';
+import UserDataService from './UserDataService';
 
 // Mock user data for testing
 const USER_1_ID = 'user-1-uuid';

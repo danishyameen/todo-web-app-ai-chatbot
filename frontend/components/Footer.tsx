@@ -16,16 +16,29 @@ export default function Footer() {
             transition={{ delay: 0.2 }}
           >
             <div className="flex-shrink-0 flex items-center">
-              <motion.div
-                className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center"
+              <motion.img
+                src="/img/logo.png"
+                alt="Taskly Logo"
+                className="h-16 w-auto object-contain"
                 whileHover={{ rotate: 360 }}
                 transition={{ duration: 0.6 }}
-              >
-                <span className="text-white font-bold text-lg">T</span>
-              </motion.div>
-              <span className="ml-2 text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Taskly
-              </span>
+                onError={(e) => {
+                  // Fallback to text if image fails to load
+                  e.currentTarget.style.display = 'none';
+                  const parent = e.currentTarget.parentElement;
+                  if (parent && !parent.querySelector('.fallback-logo')) {
+                    const fallbackDiv = document.createElement('div');
+                    fallbackDiv.className = 'fallback-logo flex items-center';
+                    fallbackDiv.innerHTML = `
+                      <div class="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+                        <span class="text-white font-bold text-lg">T</span>
+                      </div>
+                      <span class="ml-2 text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Taskly</span>
+                    `;
+                    parent.appendChild(fallbackDiv);
+                  }
+                }}
+              />
             </div>
           </motion.div>
 

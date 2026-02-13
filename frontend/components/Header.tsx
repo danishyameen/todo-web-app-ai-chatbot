@@ -104,13 +104,21 @@ export default function Header() {
                 >
                   <motion.button
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
-                    className={`h-8 w-8 rounded-full flex items-center justify-center font-medium ${
+                    className={`h-8 w-8 rounded-full flex items-center justify-center font-medium overflow-hidden ${
                       theme === 'dark' ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-800'
                     }`}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.95 }}
                   >
-                    {user.name?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase()}
+                    {user.avatar ? (
+                      <img 
+                        src={user.avatar} 
+                        alt={user.name || 'User'} 
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      user.name?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase()
+                    )}
                   </motion.button>
 
                   <AnimatePresence>

@@ -75,7 +75,7 @@ export default function CreateTaskPage() {
           completed_at: null,
           user_id: user?.id || '',
           category_id: null,
-          category: formData.category || null,
+          category: formData.category || undefined,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           // Aliases for compatibility

@@ -21,8 +21,8 @@ type Conversation = {
   id: string;
   userId: string;
   title: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export default function SimpleChatPageContent() {
@@ -47,13 +47,7 @@ export default function SimpleChatPageContent() {
     if (currentUserId) {
       const savedConversations = UserDataService.getConversations(currentUserId);
       if (savedConversations.length > 0) {
-        // Convert string dates back to Date objects for display
-        const conversationsWithDates = savedConversations.map(conv => ({
-          ...conv,
-          createdAt: new Date(conv.createdAt),
-          updatedAt: new Date(conv.updatedAt)
-        }));
-        setConversations(conversationsWithDates);
+        setConversations(savedConversations);
       }
     }
   }, [userId, user]);
@@ -216,13 +210,8 @@ export default function SimpleChatPageContent() {
         // Save conversation to localStorage via UserDataService
         UserDataService.addConversation(newConversation, currentUserId);
         
-        // Update state with Date objects
-        const conversationForState = {
-          ...newConversation,
-          createdAt: new Date(newConversation.createdAt),
-          updatedAt: new Date(newConversation.updatedAt)
-        };
-        setConversations(prev => [conversationForState, ...prev]);
+        // Update state
+        setConversations(prev => [newConversation, ...prev]);
         setActiveConversationId(newConversationId);
 
         // Save user message to localStorage

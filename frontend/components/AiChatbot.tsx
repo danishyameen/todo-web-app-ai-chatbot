@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../lib/auth-context';
 import { chatService } from '../lib/chat-service';
 import { v4 as uuidv4 } from 'uuid';
-import UserDataService, { Conversation, Message } from '../src/services/UserDataService';
+import UserDataService from '../src/services/UserDataService';
 
 // Types for our chat system
 type Message = {
@@ -19,8 +19,8 @@ type Conversation = {
   id: string;
   userId: string;
   title: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export default function AiChatbot() {
@@ -299,8 +299,8 @@ export default function AiChatbot() {
             id: uuidv4(),
             userId: currentUserId,
             title: inputValue.trim().substring(0, 30) + (inputValue.trim().length > 30 ? '...' : ''),
-            createdAt: new Date(),
-            updatedAt: new Date(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
           };
 
           setConversations(prev => [newConversation, ...prev]);
@@ -317,8 +317,8 @@ export default function AiChatbot() {
           id: conversationId,
           userId: currentUserId,
           title: inputValue.trim().substring(0, 30) + (inputValue.trim().length > 30 ? '...' : ''),
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         }, currentUserId);
       } else {
         // Offline mode - handle task operations in offline mode
@@ -530,8 +530,8 @@ export default function AiChatbot() {
           id: conversationId,
           userId: currentUserId,
           title: inputValue.trim().substring(0, 30) + (inputValue.trim().length > 30 ? '...' : ''),
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         };
 
         // Save to user-specific storage
@@ -569,8 +569,8 @@ export default function AiChatbot() {
           id: conversationId,
           userId: currentUserId,
           title: inputValue.trim().substring(0, 30) + (inputValue.trim().length > 30 ? '...' : ''),
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         }, currentUserId);
       } else {
         const errorMessage: Message = {

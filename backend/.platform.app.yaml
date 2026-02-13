@@ -1,0 +1,25 @@
+# Platform.sh configuration
+name: 'todo-backend'
+type: 'python:3.11'
+
+web:
+  commands:
+    start: "python start_server.py"
+  locations:
+    "/":
+      passthru: true
+
+disk: 512
+
+mounts:
+  'logs':
+    source: local
+    source_path: logs
+
+relationships:
+  database: "db:postgresql"
+
+hooks:
+  build: |
+    pip install --upgrade pip
+    pip install -r requirements.txt

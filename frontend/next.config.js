@@ -1,8 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone', // For standalone deployment
+  // Remove 'standalone' for Vercel - it handles Next.js optimally
   typedRoutes: true,
-  // Force using webpack instead of Turbopack
   images: {
     remotePatterns: [
       {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { UserDataTestComponent, testUserSpecificStorage } from '../src/services/UserDataTest';
+import { UserDataTestComponent, testUserSpecificStorage } from '../../src/services/UserDataTest';
 
 export default function TestUserIsolationPage() {
   const [testResults, setTestResults] = useState<string[]>([]);

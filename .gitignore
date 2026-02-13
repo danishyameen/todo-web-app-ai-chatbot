@@ -198,3 +198,4 @@ nbreleases/
 
 # Windows reserved filenames
 nul
+.vercel

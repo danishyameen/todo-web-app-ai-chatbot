@@ -15,6 +15,10 @@ from ..mcp_tools.task_tools import (
     CompleteTaskParams, DeleteTaskParams,
     add_task, list_tasks, update_task, complete_task, delete_task, delete_all_tasks
 )
+from ..mcp_tools.navigation_tools import (
+    navigate_to_page, update_settings, submit_review,
+    NavigationParams, SettingsParams, ReviewParams
+)
 from .mcp_validation_service import get_mcp_validator
 
 # Configure logging
@@ -116,6 +120,28 @@ class AIIntentClassifier:
                 r'change\s+my\s+(name|email|phone|bio|address)',
                 r'modify\s+my\s+(name|email|phone|bio|address)',
                 r'edit\s+my\s+(name|email|phone|bio|address)',
+            ],
+            'navigate': [
+                r'(go\s+to|open|show\s+me|navigate\s+to|take\s+me\s+to|move\s+to)\s+(the\s+)?(.*)',
+                r'(mujhe|mujko)\s+(.*)\s+(page|par|pe)\s+(le\s+chalo|dikhao|kholo)',
+                r'(.*)\s+(page|par|pe)\s+(jana\s+hai|jao|chalo)',
+                r'open\s+(.*)',
+                r'show\s+(.*)',
+            ],
+            'settings': [
+                r'change\s+(my\s+)?settings',
+                r'update\s+(my\s+)?settings',
+                r'modify\s+(my\s+)?settings',
+                r'settings\s+change',
+                r'(theme|language|notification)\s+(change|update|set)',
+                r'change\s+(theme|language|notification)',
+            ],
+            'review': [
+                r'(give|submit|write|add)\s+(a\s+)?review',
+                r'(rate|rating)\s+(the\s+)?app',
+                r'feedback\s+(dena|chahiye)',
+                r'review\s+(dena|likhna)',
+                r'i\s+want\s+to\s+(review|rate)',
             ],
         }
 
@@ -358,6 +384,12 @@ class AIAgentService:
             return self._handle_delete_all_tasks(params, user_id, session)
         elif intent == "update_profile":
             return self._handle_update_profile(params, user_id, session)
+        elif intent == "navigate":
+            return self._handle_navigation(params, user_id, session)
+        elif intent == "settings":
+            return self._handle_settings(params, user_id, session)
+        elif intent == "review":
+            return self._handle_review(params, user_id, session)
         elif intent == "help":
             # For help intent, pass the original text to the general response handler
             # which has the logic for different help scenarios
@@ -771,6 +803,163 @@ You can update your name, email, phone, address, bio, and other profile informat
         except Exception as e:
             logger.error(f"Error in _handle_update_profile for user {user_id}: {str(e)}")
             return f"Error updating profile: {str(e)}"
+
+    def _handle_navigation(self, params: Dict[str, Any], user_id: str, session: Session) -> str:
+        """
+        Handle navigation intent - navigate user to different pages
+        Multi-language support included
+        """
+        try:
+            logger.info(f"Handling navigation for user {user_id} with params: {params}")
+            
+            original_text = params.get("original_text", "")
+            
+            # Extract destination from matched groups or original text
+            destination = ""
+            if "groups" in params and params["groups"]:
+                # Get the last non-empty group as destination
+                for group in reversed(params["groups"]):
+                    if group and isinstance(group, str) and group.strip():
+                        destination = group.strip()
+                        break
+            
+            if not destination:
+                # Try to extract from original text
+                clean_text = original_text.lower()
+                nav_keywords = ['go to', 'open', 'show me', 'navigate to', 'take me to', 'move to', 
+                               'mujhe', 'mujko', 'page', 'par', 'pe', 'le chalo', 'dikhao', 'kholo',
+                               'jana hai', 'jao', 'chalo']
+                
+                for keyword in nav_keywords:
+                    clean_text = clean_text.replace(keyword, ' ')
+                
+                destination = clean_text.strip()
+            
+            # Detect language from original text
+            language = "en"
+            if any(word in original_text.lower() for word in ['mujhe', 'mujko', 'par', 'pe', 'chalo', 'dikhao', 'kholo']):
+                language = "ur"
+            
+            # Create navigation params
+            nav_params = NavigationParams(
+                user_id=user_id,
+                destination=destination,
+                language=language
+            )
+            
+            # Call navigation tool
+            result = navigate_to_page(nav_params, session)
+            
+            if result.success:
+                return f"{result.message}\n\n🔗 URL: {result.url}\n\nNote: Click the link or manually navigate to this page."
+            else:
+                return result.message
+                
+        except Exception as e:
+            logger.error(f"Error handling navigation: {str(e)}")
+            return f"Sorry, I couldn't navigate to that page: {str(e)}"
+
+    def _handle_settings(self, params: Dict[str, Any], user_id: str, session: Session) -> str:
+        """
+        Handle settings update intent
+        Multi-language support included
+        """
+        try:
+            logger.info(f"Handling settings for user {user_id} with params: {params}")
+            
+            original_text = params.get("original_text", "")
+            
+            # Extract setting type and value
+            setting_type = "general"
+            setting_value = ""
+            
+            # Detect what setting to change
+            if "theme" in original_text.lower():
+                setting_type = "theme"
+                if "dark" in original_text.lower():
+                    setting_value = "dark"
+                elif "light" in original_text.lower():
+                    setting_value = "light"
+            elif "language" in original_text.lower() or "bhasha" in original_text.lower():
+                setting_type = "language"
+                if "urdu" in original_text.lower() or "اردو" in original_text:
+                    setting_value = "ur"
+                elif "hindi" in original_text.lower() or "हिंदी" in original_text:
+                    setting_value = "hi"
+                elif "english" in original_text.lower():
+                    setting_value = "en"
+            elif "notification" in original_text.lower():
+                setting_type = "notifications"
+                if "on" in original_text.lower() or "enable" in original_text.lower():
+                    setting_value = "enabled"
+                elif "off" in original_text.lower() or "disable" in original_text.lower():
+                    setting_value = "disabled"
+            
+            # Detect language
+            language = "en"
+            if any(word in original_text.lower() for word in ['mera', 'mujhe', 'badlo', 'karo']):
+                language = "ur"
+            
+            # Create settings params
+            settings_params = SettingsParams(
+                user_id=user_id,
+                setting_type=setting_type,
+                setting_value=setting_value or "default",
+                language=language
+            )
+            
+            # Call settings tool
+            result = update_settings(settings_params, session)
+            
+            return result.message
+                
+        except Exception as e:
+            logger.error(f"Error handling settings: {str(e)}")
+            return f"Sorry, I couldn't update settings: {str(e)}"
+
+    def _handle_review(self, params: Dict[str, Any], user_id: str, session: Session) -> str:
+        """
+        Handle review/feedback submission
+        Multi-language support included
+        """
+        try:
+            logger.info(f"Handling review for user {user_id} with params: {params}")
+            
+            original_text = params.get("original_text", "")
+            
+            # Extract rating (default to 5 if not specified)
+            rating = 5
+            rating_match = re.search(r'(\d)\s*(star|stars|rating)', original_text.lower())
+            if rating_match:
+                rating = int(rating_match.group(1))
+                rating = max(1, min(5, rating))
+            
+            # Extract comment
+            comment = original_text
+            
+            # Detect language
+            language = "en"
+            if any(word in original_text.lower() for word in ['mera', 'mujhe', 'bahut', 'acha', 'bura']):
+                language = "ur"
+            elif any(word in original_text for word in ['बहुत', 'अच्छा', 'बुरा']):
+                language = "hi"
+            
+            # Create review params
+            review_params = ReviewParams(
+                user_id=user_id,
+                rating=rating,
+                comment=comment,
+                language=language
+            )
+            
+            # Call review tool
+            result = submit_review(review_params, session)
+            
+            return result.message
+                
+        except Exception as e:
+            logger.error(f"Error handling review: {str(e)}")
+            return f"Sorry, I couldn't submit your review: {str(e)}"
 
     def _handle_general_response(self, params: Dict[str, Any], intent: str) -> str:
         """

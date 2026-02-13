@@ -41,19 +41,13 @@ export default function PWAInstallPrompt() {
       return;
     }
 
-    // Only show when user is logged in
-    if (!user) {
-      return;
-    }
-
-    // Check if user has already seen the prompt during this specific session
-    // Using a timestamp-based session key to ensure it shows on EVERY new signin
-    const loginTimestamp = sessionStorage.getItem('loginTimestamp');
-    const currentSessionKey = `pwa-prompt-shown-${user.id}-${loginTimestamp}`;
-    const shownThisSession = sessionStorage.getItem(currentSessionKey);
+    // CRITICAL: Show for ALL users (new and old), not just logged-in users
+    // Check if dismissed recently (within last 3 days)
+    const dismissedTime = localStorage.getItem('pwa_install_dismissed_time');
+    const threeDaysInMs = 3 * 24 * 60 * 60 * 1000;
     
-    if (shownThisSession) {
-      return; // Already shown during this specific login session
+    if (dismissedTime && (Date.now() - parseInt(dismissedTime)) < threeDaysInMs) {
+      return; // Recently dismissed, don't annoy user
     }
 
     // For Android/Chrome - listen for beforeinstallprompt event
@@ -61,23 +55,29 @@ export default function PWAInstallPrompt() {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       
-      // Show prompt after 3 seconds delay
+      // Show prompt immediately (no delay) for maximum visibility
       setTimeout(() => {
         setShowPrompt(true);
-        // Mark as shown for this session
-        sessionStorage.setItem(currentSessionKey, 'true');
-      }, 3000);
+      }, 1500);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // For iOS - show manual instructions after 3 seconds
+    // For iOS - show manual instructions after short delay
     if (iOS && !standalone) {
       setTimeout(() => {
         setShowPrompt(true);
-        // Mark as shown for this session
-        sessionStorage.setItem(currentSessionKey, 'true');
-      }, 3000);
+      }, 1500);
+    }
+
+    // For browsers that don't fire beforeinstallprompt (already installed PWA support)
+    // Still show on first visit or after 3 days
+    if (!iOS) {
+      setTimeout(() => {
+        if (!deferredPrompt) {
+          setShowPrompt(true);
+        }
+      }, 2000);
     }
 
     return () => {
@@ -107,7 +107,8 @@ export default function PWAInstallPrompt() {
 
   const handleDismiss = () => {
     setShowPrompt(false);
-    // Prompt will show again on next login (session-based tracking)
+    // Store dismiss time - will show again after 3 days
+    localStorage.setItem('pwa_install_dismissed_time', Date.now().toString());
   };
 
   // Don't render if already installed

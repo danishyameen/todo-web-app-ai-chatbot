@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { chatService } from '../../lib/chat-service';
 import Header from '../../components/Header';
@@ -28,6 +28,7 @@ type Conversation = {
 export default function SimpleChatPageContent() {
   const { user, token, isAuthenticated } = useAuth();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const userIdFromUrl = searchParams.get('userId');
 
   // Use the authenticated user's ID if available, otherwise fall back to URL or localStorage
@@ -182,8 +183,61 @@ export default function SimpleChatPageContent() {
         } else {
           responseText = "You don't have any tasks yet.";
         }
-      } else {
-        responseText = "I can help you manage tasks. Try commands like:\n- Create a task: 'Add buy groceries'\n- List tasks: 'Show my tasks'\n- Complete a task: 'Complete task'\n- Delete a task: 'Delete task'";
+      } 
+      // Navigation commands (Multi-language support)
+      else if (
+        currentInput.toLowerCase().includes("go to") || 
+        currentInput.toLowerCase().includes("open") || 
+        currentInput.toLowerCase().includes("navigate") ||
+        currentInput.toLowerCase().includes("take me to") ||
+        currentInput.toLowerCase().includes("show me") && (currentInput.toLowerCase().includes("page") || currentInput.toLowerCase().includes("dashboard") || currentInput.toLowerCase().includes("profile")) ||
+        currentInput.toLowerCase().match(/^(mujhe|mujko).*(page|par|pe).*(le chalo|dikhao|kholo)/) ||
+        currentInput.toLowerCase().match(/.*(page|par|pe).*(jana|jao|chalo)/)
+      ) {
+        // Extract destination
+        let destination = currentInput.toLowerCase();
+        
+        // Detect destination and navigate
+        if (destination.includes("dashboard") || destination.includes("home")) {
+          router.push("/dashboard");
+          responseText = "📍 Navigating to Dashboard...";
+        } else if (destination.includes("task") && !destination.includes("create") && !destination.includes("new")) {
+          router.push("/tasks");
+          responseText = "📍 Navigating to Tasks page...";
+        } else if (destination.includes("create") || destination.includes("new task")) {
+          router.push("/tasks/new");
+          responseText = "📍 Opening new task creation page...";
+        } else if (destination.includes("profile") || destination.includes("account") || destination.includes("setting")) {
+          router.push("/profile");
+          responseText = "📍 Navigating to Profile/Settings page...";
+        } else if (destination.includes("chat")) {
+          responseText = "You're already on the chat page! 😊";
+        } else {
+          responseText = "I can navigate you to:\n- Dashboard (home)\n- Tasks page\n- Create new task\n- Profile/Settings\n\nJust say 'go to [page name]'";
+        }
+      }
+      // Settings/Theme commands
+      else if (
+        currentInput.toLowerCase().includes("change theme") ||
+        currentInput.toLowerCase().includes("dark mode") ||
+        currentInput.toLowerCase().includes("light mode") ||
+        currentInput.toLowerCase().includes("settings")
+      ) {
+        responseText = "⚙️ To change theme and settings, please go to your Profile page. I'll take you there!";
+        setTimeout(() => router.push("/profile"), 1000);
+      }
+      // Review/Feedback commands
+      else if (
+        currentInput.toLowerCase().includes("review") ||
+        currentInput.toLowerCase().includes("feedback") ||
+        currentInput.toLowerCase().includes("rate") && currentInput.toLowerCase().includes("app")
+      ) {
+        const ratingMatch = currentInput.match(/(\d)\s*(star|rating)/i);
+        const rating = ratingMatch ? ratingMatch[1] : "5";
+        responseText = `⭐ Thank you for your ${rating}-star feedback! Your review helps us improve the app. We appreciate your support! 🙏`;
+      }
+      else {
+        responseText = "I can help you with:\n\n📋 Tasks:\n- Create: 'Add buy groceries'\n- List: 'Show my tasks'\n- Complete: 'Mark task as done'\n- Delete: 'Delete task'\n\n🧭 Navigation:\n- 'Go to dashboard'\n- 'Open tasks page'\n- 'Take me to profile'\n\n⚙️ Settings:\n- 'Change theme'\n- 'Go to settings'\n\n⭐ Feedback:\n- 'Give 5 star review'\n- 'Submit feedback'\n\nTry any command in English, Urdu, or Hindi!";
       }
 
       const assistantMessage: Message = {

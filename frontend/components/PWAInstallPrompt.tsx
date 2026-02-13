@@ -9,10 +9,23 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export default function PWAInstallPrompt() {
+  const [user, setUser] = useState<any>(null);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+
+  useEffect(() => {
+    // Get user from localStorage
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      try {
+        setUser(JSON.parse(userStr));
+      } catch (e) {
+        console.error('Error parsing user:', e);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     // Check if app is already installed (standalone mode)
@@ -28,15 +41,17 @@ export default function PWAInstallPrompt() {
       return;
     }
 
-    // Check if user has dismissed the prompt before
-    const dismissed = localStorage.getItem('pwa-install-dismissed');
-    if (dismissed) {
-      const dismissedTime = parseInt(dismissed);
-      const now = Date.now();
-      // Show again after 7 days
-      if (now - dismissedTime < 7 * 24 * 60 * 60 * 1000) {
-        return;
-      }
+    // Only show when user is logged in
+    if (!user) {
+      return;
+    }
+
+    // Check if user has already seen the prompt during this session
+    const currentSessionKey = `pwa-prompt-shown-${user.id}`;
+    const shownThisSession = sessionStorage.getItem(currentSessionKey);
+    
+    if (shownThisSession) {
+      return; // Already shown during this login session
     }
 
     // For Android/Chrome - listen for beforeinstallprompt event
@@ -47,6 +62,8 @@ export default function PWAInstallPrompt() {
       // Show prompt after 3 seconds delay
       setTimeout(() => {
         setShowPrompt(true);
+        // Mark as shown for this session
+        sessionStorage.setItem(currentSessionKey, 'true');
       }, 3000);
     };
 
@@ -56,13 +73,15 @@ export default function PWAInstallPrompt() {
     if (iOS && !standalone) {
       setTimeout(() => {
         setShowPrompt(true);
+        // Mark as shown for this session
+        sessionStorage.setItem(currentSessionKey, 'true');
       }, 3000);
     }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
-  }, []);
+  }, [user]);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) {
@@ -86,7 +105,7 @@ export default function PWAInstallPrompt() {
 
   const handleDismiss = () => {
     setShowPrompt(false);
-    localStorage.setItem('pwa-install-dismissed', Date.now().toString());
+    // Prompt will show again on next login (session-based tracking)
   };
 
   // Don't render if already installed

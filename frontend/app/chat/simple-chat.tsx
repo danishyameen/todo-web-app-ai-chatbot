@@ -44,7 +44,20 @@ export default function SimpleChatPageContent() {
 
   // Load conversations from localStorage on mount using UserDataService
   useEffect(() => {
-    const currentUserId = user?.id || localStorage.getItem('anonymousUserId') || userId;
+    // Get user ID from auth or create anonymous user
+    let currentUserId = user?.id;
+    
+    if (!currentUserId) {
+      // Try to get existing anonymous user ID from localStorage
+      currentUserId = localStorage.getItem('anonymousUserId');
+      
+      // If no anonymous user ID exists, create a new one
+      if (!currentUserId) {
+        currentUserId = uuidv4();
+        localStorage.setItem('anonymousUserId', currentUserId);
+      }
+    }
+    
     if (currentUserId) {
       const savedConversations = UserDataService.getConversations(currentUserId);
       if (savedConversations.length > 0) {
@@ -79,8 +92,19 @@ export default function SimpleChatPageContent() {
       return;
     }
 
-    // Use the authenticated user's ID
-    const currentUserId = user.id;
+    // Get user ID from auth or create anonymous user
+    let currentUserId = user?.id;
+    
+    if (!currentUserId) {
+      // Try to get existing anonymous user ID from localStorage
+      currentUserId = localStorage.getItem('anonymousUserId');
+      
+      // If no anonymous user ID exists, create a new one
+      if (!currentUserId) {
+        currentUserId = uuidv4();
+        localStorage.setItem('anonymousUserId', currentUserId);
+      }
+    }
 
     // Add user message to the conversation
     const userMessage: Message = {
@@ -392,7 +416,19 @@ export default function SimpleChatPageContent() {
                     }`}
                     onClick={() => {
                       // Load the conversation messages
-                      const currentUserId = user?.id || localStorage.getItem('anonymousUserId') || userId;
+                      let currentUserId = user?.id;
+                      
+                      if (!currentUserId) {
+                        // Try to get existing anonymous user ID from localStorage
+                        currentUserId = localStorage.getItem('anonymousUserId');
+                        
+                        // If no anonymous user ID exists, create a new one
+                        if (!currentUserId) {
+                          currentUserId = uuidv4();
+                          localStorage.setItem('anonymousUserId', currentUserId);
+                        }
+                      }
+                      
                       const savedMessages = UserDataService.getMessages(conversation.id, currentUserId);
                       
                       if (savedMessages.length > 0) {

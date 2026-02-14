@@ -38,21 +38,22 @@ export default function SimpleChatPageContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false); // Default to closed on mobile for better UX
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load conversations from localStorage on mount using UserDataService
   useEffect(() => {
     // Get user ID from auth or create anonymous user
-    let currentUserId = user?.id;
+    let currentUserId: string | undefined = user?.id;
     
     if (!currentUserId) {
       // Try to get existing anonymous user ID from localStorage
-      currentUserId = localStorage.getItem('anonymousUserId');
-      
-      // If no anonymous user ID exists, create a new one
-      if (!currentUserId) {
+      const storedUserId = localStorage.getItem('anonymousUserId');
+      if (storedUserId) {
+        currentUserId = storedUserId;
+      } else {
+        // If no anonymous user ID exists, create a new one
         currentUserId = uuidv4();
         localStorage.setItem('anonymousUserId', currentUserId);
       }
@@ -93,14 +94,15 @@ export default function SimpleChatPageContent() {
     }
 
     // Get user ID from auth or create anonymous user
-    let currentUserId = user?.id;
+    let currentUserId: string | undefined = user?.id;
     
     if (!currentUserId) {
       // Try to get existing anonymous user ID from localStorage
-      currentUserId = localStorage.getItem('anonymousUserId');
-      
-      // If no anonymous user ID exists, create a new one
-      if (!currentUserId) {
+      const storedUserId = localStorage.getItem('anonymousUserId');
+      if (storedUserId) {
+        currentUserId = storedUserId;
+      } else {
+        // If no anonymous user ID exists, create a new one
         currentUserId = uuidv4();
         localStorage.setItem('anonymousUserId', currentUserId);
       }
@@ -416,14 +418,15 @@ export default function SimpleChatPageContent() {
                     }`}
                     onClick={() => {
                       // Load the conversation messages
-                      let currentUserId = user?.id;
+                      let currentUserId: string | undefined = user?.id;
                       
                       if (!currentUserId) {
                         // Try to get existing anonymous user ID from localStorage
-                        currentUserId = localStorage.getItem('anonymousUserId');
-                        
-                        // If no anonymous user ID exists, create a new one
-                        if (!currentUserId) {
+                        const storedUserId = localStorage.getItem('anonymousUserId');
+                        if (storedUserId) {
+                          currentUserId = storedUserId;
+                        } else {
+                          // If no anonymous user ID exists, create a new one
                           currentUserId = uuidv4();
                           localStorage.setItem('anonymousUserId', currentUserId);
                         }

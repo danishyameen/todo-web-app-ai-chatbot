@@ -56,14 +56,15 @@ export default function AiChatbot() {
   // Initialize for all users (authenticated or anonymous)
   useEffect(() => {
     // Get user ID from auth or create anonymous user
-    let userId = user?.id;
+    let userId: string | undefined = user?.id;
     
     if (!userId) {
       // Try to get existing anonymous user ID from localStorage
-      userId = localStorage.getItem('anonymousUserId');
-      
-      // If no anonymous user ID exists, create a new one
-      if (!userId) {
+      const storedUserId = localStorage.getItem('anonymousUserId');
+      if (storedUserId) {
+        userId = storedUserId;
+      } else {
+        // If no anonymous user ID exists, create a new one
         userId = uuidv4();
         localStorage.setItem('anonymousUserId', userId);
       }
@@ -167,14 +168,15 @@ export default function AiChatbot() {
 
         // Handle specific task-related commands
         // Get current user ID (authenticated or anonymous)
-        let currentUserId = user?.id;
+        let currentUserId: string | undefined = user?.id;
         
         if (!currentUserId) {
           // Try to get existing anonymous user ID from localStorage
-          currentUserId = localStorage.getItem('anonymousUserId');
-          
-          // If no anonymous user ID exists, create a new one
-          if (!currentUserId) {
+          const storedUserId = localStorage.getItem('anonymousUserId');
+          if (storedUserId) {
+            currentUserId = storedUserId;
+          } else {
+            // If no anonymous user ID exists, create a new one
             currentUserId = uuidv4();
             localStorage.setItem('anonymousUserId', currentUserId);
           }
@@ -362,14 +364,15 @@ export default function AiChatbot() {
       } else {
         // Offline mode - handle task operations in offline mode
         // Get current user ID (authenticated or anonymous)
-        let currentUserId = user?.id;
+        let currentUserId: string | undefined = user?.id;
         
         if (!currentUserId) {
           // Try to get existing anonymous user ID from localStorage
-          currentUserId = localStorage.getItem('anonymousUserId');
-          
-          // If no anonymous user ID exists, create a new one
-          if (!currentUserId) {
+          const storedUserId = localStorage.getItem('anonymousUserId');
+          if (storedUserId) {
+            currentUserId = storedUserId;
+          } else {
+            // If no anonymous user ID exists, create a new one
             currentUserId = uuidv4();
             localStorage.setItem('anonymousUserId', currentUserId);
           }
@@ -613,14 +616,15 @@ export default function AiChatbot() {
         setMessages(prev => [...prev, assistantMessage]);
 
         // Save to user-specific storage
-        let currentUserId = user?.id;
+        let currentUserId: string | undefined = user?.id;
         
         if (!currentUserId) {
           // Try to get existing anonymous user ID from localStorage
-          currentUserId = localStorage.getItem('anonymousUserId');
-          
-          // If no anonymous user ID exists, create a new one
-          if (!currentUserId) {
+          const storedUserId = localStorage.getItem('anonymousUserId');
+          if (storedUserId) {
+            currentUserId = storedUserId;
+          } else {
+            // If no anonymous user ID exists, create a new one
             currentUserId = uuidv4();
             localStorage.setItem('anonymousUserId', currentUserId);
           }

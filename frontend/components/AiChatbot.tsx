@@ -634,7 +634,7 @@ export default function AiChatbot() {
           whileTap={{ scale: 0.95 }}
           whileInView={{ scale: [0, 1.2, 1] }}
           viewport={{ once: true }}
-          className="fixed bottom-8 right-8 z-50 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 text-white p-5 rounded-full shadow-2xl hover:shadow-3xl transition-all duration-300 cursor-pointer bg-beautiful-gradient animate-float"
+          className="fixed bottom-8 right-8 z-50 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 text-white p-5 rounded-full shadow-2xl hover:shadow-3xl transition-all duration-300 cursor-pointer bg-beautiful-gradient animate-float hidden md:block"
           onClick={() => setIsOpen(true)}
           aria-label="Open AI Chatbot"
         >
